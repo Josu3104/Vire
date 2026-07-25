@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ──────────────────────────────────────────
+enum UserRole {
+  comun
+  member
+  empleador
+  admin
+}
+
+enum AvailabilityState {
+  available
+  research
+  unavailable
+}
+
+enum ProjectStatus {
+  publico
+  pendiente
+  requiere_cambios
+}
+
+enum BadgeRequestStatus {
+  pending
+  approved
+  denied
+}
+
+enum AcademicLevelType {
+  tecnico_escolar
+  universitario
+  profesional
+}
+
+enum JobType {
+  empleo
+  pasantia
+  evento
+}
+
+enum ScanStatus {
+  pending
+  clean
+  infected
+  unscanned
+}
+
+// ─── MODELOS ────────────────────────────────────────
+model User {
+  id                  Int               @id @default(autoincrement())
+  name                String            @db.VarChar
+  email               String            @unique @db.VarChar
+  passwordHash        String            @map("password_hash") @db.VarChar
+  role                UserRole          @default(comun)
+  affiliation         String?           @db.VarChar
+  pendingVerification Boolean           @default(false) @map("pending_verification")
+  avatarUrl           String?           @map("avatar_url") @db.VarChar
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamp
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamp
+  isOnline            Boolean           @default(false) @map("is_online")
+  lastSeen            DateTime?         @map("last_seen") @db.Timestamp
+
+  profile             Profile?
+  projectAuthors      ProjectAuthor[]
+  votes               ProjectVote[]
+  comments            Comment[]
+  badges              Badge[]
+  badgeRequests       BadgeRequest[]
+  sentMessages        Message[]         @relation("SentMessages")
+  chatsAsParticipant1 Chat[]            @relation("Participant1")
+  chatsAsParticipant2 Chat[]            @relation("Participant2")
+  papers              Paper[]
+  paperCoauthors      PaperCoauthor[]
+  jobListings         JobListing[]
+  notifications       Notification[]
+  adminReviewedProjects Project[]       @relation("ProjectAdminReviewer")
+  adminReviewedBadges   BadgeRequest[]  @relation("BadgeAdminReviewer")
+
+  @@map("users")
+}
+
+model Profile {
+  id                Int               @id @default(autoincrement())
+  userId            Int               @unique @map("user_id")
+  bio               String?           @db.Text
+  birthdate         DateTime?         @db.Date
+  phone             String?           @db.VarChar
+  university        String            @default("Sin especificar") @db.VarChar
+  campus            String?           @db.VarChar
+  city              String?           @db.VarChar
+  academicStatus    String?           @map("academic_status") @db.VarChar
+  availabilityState AvailabilityState @default(unavailable) @map("availability_state")
+  isContactPublic   Boolean           @default(true) @map("is_contact_public")
+  bannerUrl         String?           @map("banner_url") @db.VarChar
+  cvUrl             String?           @map("cv_url") @db.VarChar
+  onboardingComplete Boolean          @default(false) @map("onboarding_complete")
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamp
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Project {
+  id              Int               @id @default(autoincrement())
+  title           String            @db.VarChar
+  university      String            @db.VarChar
+  branch          String            @db.VarChar
+  coverImageUrl   String?           @map("cover_image_url") @db.VarChar
+  pdfLink         String?           @map("pdf_link") @db.VarChar
+  cadLink         String?           @map("cad_link") @db.VarChar
+  videoUrl        String?           @map("video_url") @db.VarChar
+  description     String?           @db.Text
+  tags            Json?             @default("[]")
+  academicLevel   AcademicLevelType @default(universitario) @map("academic_level")
+  status          ProjectStatus     @default(pendiente)
+  scanStatus      ScanStatus        @default(pending) @map("scan_status")
+  type            String            @default("project") @db.VarChar
+  abstract        String?           @db.Text
+  doi             String?           @db.VarChar
+  year            Int?
+  journal         String?           @db.VarChar
+  coauthors       String?           @db.Text
+  adminReviewerId Int?              @map("admin_reviewer_id")
+  rejectionReason String?           @map("rejection_reason") @db.Text
+  upvotes         Int               @default(0)
+  downvotes       Int               @default(0)
+  advisors        Json?             @default("[]")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamp
+
+  adminReviewer   User?             @relation("ProjectAdminReviewer", fields: [adminReviewerId], references: [id], onDelete: SetNull)
+  authors         ProjectAuthor[]
+  votes           ProjectVote[]
+  comments        Comment[]
+
+  @@index([status])
+  @@index([university])
+  @@index([branch])
+  @@map("projects")
+}
+
+model ProjectAuthor {
+  projectId Int @map("project_id")
+  userId    Int @map("user_id")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@map("project_authors")
+}
+
+model ProjectVote {
+  projectId Int      @map("project_id")
+  userId    Int      @map("user_id")
+  isUpvote  Boolean  @map("is_upvote")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@map("project_votes")
+}
+
+model Comment {
+  id              Int       @id @default(autoincrement())
+  projectId       Int       @map("project_id")
+  userId          Int       @map("user_id")
+  text            String    @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp
+  isHiddenByAuthor Boolean  @default(false) @map("is_hidden_by_author")
+
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Paper {
+  id        Int             @id @default(autoincrement())
+  userId    Int             @map("user_id")
+  title     String          @db.VarChar
+  abstract  String?         @db.Text
+  doi       String?         @db.VarChar
+  year      Int?
+  journal   String?         @db.VarChar
+  upvotes   Int             @default(0)
+  tags      Json?           @default("[]")
+  pdfLink   String?         @map("pdf_link") @db.VarChar
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coauthors PaperCoauthor[]
+
+  @@map("papers")
+}
+
+model PaperCoauthor {
+  paperId Int @map("paper_id")
+  userId  Int @map("user_id")
+
+  paper   Paper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([paperId, userId])
+  @@map("paper_coauthors")
+}
+
+model Badge {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  name      String   @db.VarChar
+  icon      String   @db.VarChar
+  issuedBy  String   @map("issued_by") @db.VarChar
+  date      DateTime @db.Date
+  certified Boolean  @default(true)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("badges")
+}
+
+model BadgeRequest {
+  id              Int                @id @default(autoincrement())
+  userId          Int                @map("user_id")
+  badgeName       String             @map("badge_name") @db.VarChar
+  badgeIcon       String             @map("badge_icon") @db.VarChar
+  competition     String             @db.VarChar
+  evidenceUrl     String             @map("evidence_url") @db.VarChar
+  submittedAt     DateTime           @default(now()) @map("submitted_at") @db.Date
+  status          BadgeRequestStatus @default(pending)
+  adminReviewerId Int?               @map("admin_reviewer_id")
+  rejectionReason String?            @map("rejection_reason") @db.Text
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adminReviewer   User?              @relation("BadgeAdminReviewer", fields: [adminReviewerId], references: [id], onDelete: SetNull)
+
+  @@map("badge_requests")
+}
+
+model Chat {
+  id             Int       @id @default(autoincrement())
+  participant1Id Int       @map("participant1_id")
+  participant2Id Int       @map("participant2_id")
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamp
+
+  participant1   User      @relation("Participant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2   User      @relation("Participant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  messages       Message[]
+
+  @@unique([participant1Id, participant2Id])
+  @@map("chats")
+}
+
+model Message {
+  id            Int       @id @default(autoincrement())
+  chatId        Int       @map("chat_id")
+  senderId      Int       @map("sender_id")
+  text          String?   @db.Text
+  attachmentUrl String?   @map("attachment_url") @db.VarChar
+  isRead        Boolean   @default(false) @map("is_read")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp
+
+  chat          Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender        User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Notification {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  type            String   @db.VarChar
+  content         String   @db.Text
+  isRead          Boolean  @default(false) @map("is_read")
+  relatedEntityId Int?     @map("related_entity_id")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model JobListing {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar
+  company   String   @db.VarChar
+  type      JobType  @default(empleo)
+  location  String   @db.VarChar
+  postedBy  Int      @map("posted_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp
+
+  user      User     @relation(fields: [postedBy], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@index([location])
+  @@map("job_listings")
+}

@@ -1,0 +1,99 @@
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vire-backend-test
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://vire:${POSTGRES_PASSWORD:-vire_dev_2026}@postgres:5432/vire_db
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_dev_key_2026}
+      JWT_EXPIRATION: 7d
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+      SEAWEED_S3_ENDPOINT: http://seaweed-filer:8333
+      SEAWEED_S3_BUCKET: vire-storage
+      SEAWEED_S3_REGION: us-east-1
+      SEAWEED_ACCESS_KEY: ${SEAWEED_ACCESS_KEY:-admin}
+      SEAWEED_SECRET_KEY: ${SEAWEED_SECRET_KEY:-admin}
+      CORS_ORIGIN: http://localhost:5173
+      BREVO_API_KEY: ${BREVO_API_KEY:-""}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+      seaweed-filer:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: vire-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vire
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vire_dev_2026}
+      POSTGRES_DB: vire_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_test:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vire -d vire_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── SeaweedFS (Master + Volume + Filer + S3) ──
+  seaweed-master:
+    image: chrislusf/seaweedfs:latest
+    container_name: vire-seaweed-master-test
+    command: "master -ip=seaweed-master -port=9333"
+    ports:
+      - "9333:9333"
+
+  seaweed-volume:
+    image: chrislusf/seaweedfs:latest
+    container_name: vire-seaweed-volume-test
+    command: "volume -mserver=seaweed-master:9333 -port=8080 -ip=seaweed-volume -max=100"
+    depends_on:
+      - seaweed-master
+    ports:
+      - "8080:8080"
+
+  seaweed-filer:
+    image: chrislusf/seaweedfs:latest
+    container_name: vire-seaweed-filer-test
+    command: "filer -master=seaweed-master:9333 -port=8888 -s3 -s3.port=8333"
+    depends_on:
+      - seaweed-master
+      - seaweed-volume
+    ports:
+      - "8888:8888"    # Filer HTTP API
+      - "8333:8333"    # S3 compatible endpoint
+    volumes:
+      - seaweed_data_test:/data
+
+  # ─── ClamAV Antivirus Daemon ──────────────────
+  clamav:
+    image: clamav/clamav:stable
+    container_name: vire-clamav-test
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data_test:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "echo PING | nc localhost 3310 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s   # ClamAV tarda en descargar firmas
+
+volumes:
+  postgres_data_test:
+  seaweed_data_test:
+  clamav_data_test:

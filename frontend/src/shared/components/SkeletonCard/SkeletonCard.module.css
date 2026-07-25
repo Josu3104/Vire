@@ -1,0 +1,79 @@
+/* src/components/SkeletonCard.module.css */
+
+.skeletonCard {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-elevation);
+  aspect-ratio: 4 / 5;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+/* Gradient shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmerBox {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-secondary) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.cover {
+  flex: 1;
+  width: 100%;
+}
+
+.info {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-surface);
+}
+
+.title {
+  height: 20px;
+  width: 80%;
+  border-radius: var(--radius-sm);
+}
+
+.subtitle {
+  height: 12px;
+  width: 50%;
+  border-radius: var(--radius-sm);
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.tag {
+  height: 20px;
+  width: 60px;
+  border-radius: var(--radius-pill);
+}

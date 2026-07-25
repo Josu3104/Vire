@@ -1,0 +1,348 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl), var(--shadow-elevation);
+  animation: fadeScale 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.header {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.tabs {
+  display: flex;
+  padding: 0 1.5rem;
+  gap: 2rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 1rem 0;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  color: var(--accent-400);
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent-500);
+  border-radius: 2px 2px 0 0;
+}
+
+.form {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.footer {
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.submitBtn {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.submitBtn:hover {
+  opacity: 0.9;
+}
+
+.multiselectBox {
+  min-height: 42px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.2s ease;
+}
+
+.multiselectBox:hover {
+  border-color: var(--accent-400);
+}
+
+.placeholder {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  user-select: none;
+}
+
+.pillsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pill {
+  background: var(--accent-subtle);
+  color: var(--accent-300);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: var(--radius-full);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.pill:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.pillAvatar {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+}
+
+.pillClose {
+  font-size: 1.1rem;
+  font-weight: bold;
+  line-height: 0.8;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+.dropdownOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: transparent;
+}
+
+.multiselectDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 901;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  gap: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.dropdownItem:hover {
+  background: var(--bg-elevated);
+}
+
+.itemSelected {
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.dropdownAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+}
+
+.dropdownUserInfo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.dropdownUserName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.dropdownUserUni {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dropdownCheckbox {
+  accent-color: var(--accent-500);
+}
+
+/* --- Fake Uploader --- */
+.uploaderContainer {
+  position: relative;
+  width: 100%;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  transition: all 0.2s ease;
+  background: var(--bg-elevated);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.uploaderContainer:hover {
+  border-color: var(--accent-500);
+  background: rgba(0, 240, 255, 0.02);
+}
+
+.uploaderContainer.success {
+  border-color: var(--success);
+  border-style: solid;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.fileInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.fileInput:disabled {
+  cursor: not-allowed;
+}
+
+.uploadIcon {
+  width: 28px;
+  height: 28px;
+  color: var(--accent-400);
+}
+
+.successIcon {
+  width: 24px;
+  height: 24px;
+  color: var(--success);
+}
+
+.uploadText {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.uploadSubtext {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.progressContainer {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-surface);
+  border-radius: 2px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+  position: relative;
+  z-index: 3;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--accent-gradient);
+  width: 0%;
+  animation: progressAnim 1.5s ease-in-out forwards;
+}
+
+@keyframes progressAnim {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}

@@ -1,0 +1,440 @@
+/* src/pages/OnboardingWizard.module.css */
+
+/* ─── Page ─────────────────────────────────────────────────────────────── */
+.page {
+  min-height: 100svh;
+  background: var(--bg-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.bgOrb1 {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
+  top: -150px;
+  left: -100px;
+  pointer-events: none;
+}
+
+.bgOrb2 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%);
+  bottom: -100px;
+  right: -80px;
+  pointer-events: none;
+}
+
+/* ─── Card ──────────────────────────────────────────────────────────────── */
+.card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 680px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+  animation: slideUp 0.5s var(--ease-out) both;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Card Header ─────────────────────────────────────────────────────── */
+.cardHeader {
+  padding: 32px 40px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(59,130,246,0.04) 0%, transparent 100%);
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.logoMark {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--gradient-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+  color: white;
+}
+
+.logoLabel {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.subtitle strong { color: var(--accent-400); }
+
+/* ─── Step Indicator ────────────────────────────────────────────────────── */
+.stepIndicator {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stepDot {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-default);
+  transition: all 0.4s var(--ease-out);
+  flex: 1;
+}
+
+.stepDone { background: rgba(59,130,246,0.4); }
+.stepActive { background: var(--accent-500); }
+
+/* ─── Step Body ─────────────────────────────────────────────────────────── */
+.stepBody {
+  padding: 32px 40px;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  animation: fadeIn 0.3s ease both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.section { display: flex; flex-direction: column; gap: 14px; }
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ─── Avatar Grid ────────────────────────────────────────────────────────── */
+.avatarGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.avatarOption {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--duration-fast) ease;
+  padding: 0;
+}
+
+.avatarOption:hover {
+  border-color: var(--accent-500);
+  transform: scale(1.06);
+}
+
+.avatarSelected {
+  border-color: var(--accent-500);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.avatarOption img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatarCheck {
+  position: absolute;
+  inset: 0;
+  background: rgba(59,130,246,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: white;
+  font-weight: 700;
+}
+
+.uploadHint {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--duration-fast) ease;
+  font-family: var(--font-sans);
+}
+.uploadHint:hover { border-color: var(--accent-500); color: var(--accent-400); }
+
+/* ─── Banner Grid ────────────────────────────────────────────────────────── */
+.bannerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.bannerOption {
+  position: relative;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-subtle);
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  aspect-ratio: 16 / 5;
+  transition: all var(--duration-fast) ease;
+  background: var(--bg-elevated);
+}
+
+.bannerOption:hover { border-color: var(--accent-500); transform: scale(1.02); }
+
+.bannerSelected {
+  border-color: var(--accent-500);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.bannerOption img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bannerLabel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 10px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+  font-size: 11px;
+  color: white;
+  font-weight: 500;
+  text-align: left;
+}
+
+.bannerCheck {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: white;
+  font-weight: 700;
+}
+
+/* ─── Form Grid ──────────────────────────────────────────────────────────── */
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.required { color: var(--danger); font-weight: 700; }
+.optional { color: var(--text-muted); font-size: 12px; font-style: italic; }
+
+/* ─── Card Footer ────────────────────────────────────────────────────────── */
+.cardFooter {
+  padding: 20px 40px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-elevated);
+}
+
+.navBtns {
+  display: flex;
+  gap: 10px;
+}
+
+.skipBtn {
+  font-size: 13px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  transition: color var(--duration-fast) ease;
+  font-family: var(--font-sans);
+}
+.skipBtn:hover { color: var(--text-secondary); }
+
+.backBtn {
+  padding: 10px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all var(--duration-fast) ease;
+}
+.backBtn:hover { background: var(--border-subtle); }
+
+.nextBtn, .finishBtn {
+  padding: 10px 24px;
+  background: var(--gradient-brand);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+.nextBtn:hover, .finishBtn:hover { opacity: 0.88; transform: translateY(-1px); }
+.finishBtn { background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 16px rgba(16,185,129,0.3); }
+
+/* ─── Skip Modal ─────────────────────────────────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+  animation: fadeInOverlay 0.2s ease;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 40px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  animation: scaleIn 0.25s var(--ease-out) both;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.modalIcon { font-size: 40px; margin-bottom: 12px; }
+
+.modalTitle {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.modalBody {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.modalBody strong { color: var(--text-primary); }
+
+.modalActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modalBtnPrimary {
+  width: 100%;
+  padding: 12px;
+  background: var(--gradient-brand);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: opacity var(--duration-fast) ease;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+.modalBtnPrimary:hover { opacity: 0.88; }
+
+.modalBtnGhost {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all var(--duration-fast) ease;
+}
+.modalBtnGhost:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .cardHeader, .stepBody, .cardFooter { padding-left: 20px; padding-right: 20px; }
+  .avatarGrid { grid-template-columns: repeat(3, 1fr); }
+  .bannerGrid { grid-template-columns: 1fr; }
+  .formGrid { grid-template-columns: 1fr; }
+  .cardFooter { flex-direction: column; align-items: stretch; }
+  .navBtns { justify-content: flex-end; }
+}

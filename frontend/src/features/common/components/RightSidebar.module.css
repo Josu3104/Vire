@@ -1,0 +1,195 @@
+/* src/components/RightSidebar.module.css */
+
+.sidebar {
+  width: 100%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+/* Hide scrollbar for cleaner look */
+.sidebar::-webkit-scrollbar { width: 0; }
+.sidebar { scrollbar-width: none; }
+
+.widget {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.widgetHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.widgetHeader svg {
+  width: 18px;
+  height: 18px;
+  color: var(--accent-400);
+}
+
+.widgetHeader h3 {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.widgetBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Trends */
+.trendRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.trendRank {
+  font-weight: 700;
+  color: var(--accent-500);
+  min-width: 24px;
+}
+
+.trendName {
+  color: var(--text-primary);
+  font-weight: 500;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trendCount {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  gap: 4px;
+}
+
+.tabBtn {
+  flex: 1;
+  padding: 6px 0;
+  text-align: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.tabBtn:hover { color: var(--text-secondary); }
+
+.tabActive {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Top Engineers */
+.engRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-elevated);
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.engRow:hover {
+  border-color: var(--border-subtle);
+}
+
+.engAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  object-fit: cover;
+}
+
+.engInfo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.engName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.engScore {
+  font-size: 11px;
+  color: var(--accent-400);
+}
+
+.engRank {
+  font-size: 16px;
+}
+
+/* Jobs */
+.jobCard {
+  padding: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: transform var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  cursor: pointer;
+}
+
+.jobCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-500);
+}
+
+.jobTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.jobCompany {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.jobMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
