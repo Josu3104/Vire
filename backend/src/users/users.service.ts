@@ -105,9 +105,6 @@ export class UsersService {
           { name: { contains: query, mode: 'insensitive' } },
           { email: { contains: query, mode: 'insensitive' } },
         ],
-        profile: {
-          availabilityState: { not: 'unavailable' },
-        },
       },
       take: 10,
       select: {
