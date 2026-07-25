@@ -16,6 +16,8 @@ import { BadgesModule } from './badges/badges.module';
 import { ChatModule } from './chat/chat.module';
 import { EmailsModule } from './emails/emails.module';
 import { JobsModule } from './jobs/jobs.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
@@ -24,6 +26,7 @@ import { NotificationsModule } from './notifications/notifications.module';
       isGlobal: true,
       load: [appConfig, databaseConfig, storageConfig, clamavConfig],
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -35,6 +38,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     EmailsModule,
     JobsModule,
     NotificationsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

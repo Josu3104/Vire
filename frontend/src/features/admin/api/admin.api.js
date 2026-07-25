@@ -19,3 +19,11 @@ export const getPendingUsers = async () => {
 export const approveUser = async (id) => {
   return apiClient.post(`/users/${id}/approve`);
 };
+
+export const getSettings = async () => {
+  return apiClient.get('/admin/settings');
+};
+
+export const updateSetting = async (key, value) => {
+  return apiClient.put('/admin/settings', { key, value });
+};

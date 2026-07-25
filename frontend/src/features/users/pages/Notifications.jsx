@@ -4,7 +4,7 @@ import { getTopEngineers } from '@/features/users/api/users.api'
 import { useGlobalStats } from '@/core/context/GlobalStatsContext'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/context/AuthContext'
-import { startChat } from '@/features/chat/api/chat.api'
+
 import styles from './Notifications.module.css'
 
 export default function Notifications() {
@@ -30,14 +30,7 @@ export default function Notifications() {
     }
   }
 
-  const handleConnect = async (targetUserId) => {
-    try {
-      const chat = await startChat(targetUserId)
-      navigate(`/mensajes?chatId=${chat.id}`)
-    } catch(e) {
-      console.error(e)
-    }
-  }
+
 
   const visibleNotifications = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications
 
@@ -102,7 +95,7 @@ export default function Notifications() {
                 <div className={styles.suggestionInfo}>
                   <div className={styles.suggestionName}>{u.name}</div>
                   <div className={styles.suggestionDesc}>{u.profile?.university || 'Ingeniero'}</div>
-                  <button className={styles.followBtn} onClick={() => handleConnect(u.id)}>Conectar</button>
+                  <button className={styles.followBtn} onClick={() => navigate(`/usuario/${u.id}`)}>Ver Perfil</button>
                 </div>
               </div>
             ))}

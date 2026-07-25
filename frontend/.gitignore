@@ -33,4 +33,4 @@ dist-ssr
 
 # NOTA: package-lock.json NO debe ignorarse.
 # package-lock.json asegura compilaciones consistentes, especialmente en Docker.
-nginx.conf
+

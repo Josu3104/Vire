@@ -7,7 +7,10 @@ import { startChat } from '@/features/chat/api/chat.api'
 import { getUserById } from '@/features/users/api/users.api'
 import { useToast } from '@/core/notifications/ToastContext'
 import ProjectCard from '@/features/projects/components/ProjectCard'
+
 import ProfileEditModal from '@/features/users/components/ProfileEditModal'
+import EditProjectModal from '@/features/projects/components/EditProjectModal'
+import { getMyProjects } from '@/features/projects/api/projects.api'
 import styles from './Profile.module.css'
 
 /* ── Icons ─────────────────────────────────────────────────────────────── */
@@ -22,7 +25,9 @@ const IconChevron = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 const IconChevronUp = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
 const IconEdit = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
 const IconMessageSquare = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-const IconVerified = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>/* ── LED availability config ────────────────────────────────────────────── */
+const IconVerified = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+const IconFileText = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+/* ── LED availability config ────────────────────────────────────────────── */
 const LED_CONFIG = {
   available: { color: '#22c55e', label: 'Disponible para pasantías/empleo', cssVar: '--led-green' },
   research: { color: '#3b82f6', label: 'Abierto a proyectos de investigación', cssVar: '--led-blue' },
@@ -110,9 +115,13 @@ export default function Profile() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('projects')
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingProject, setEditingProject] = useState(null)
+  const [myProjectsList, setMyProjectsList] = useState([])
   
   const [profileUser, setProfileUser] = useState(currentUser)
   const [isLoading, setIsLoading] = useState(false)
+  
+  const isMyProfile = currentUser?.id === profileUser?.id;
 
   useEffect(() => {
     if (id && id !== currentUser?.id) {
@@ -132,6 +141,12 @@ export default function Profile() {
     }
   }, [id, currentUser, error])
 
+  useEffect(() => {
+    if (isMyProfile) {
+      getMyProjects().then(res => setMyProjectsList(res.data || [])).catch(console.error)
+    }
+  }, [isMyProfile])
+
   if (isLoading) {
     return <div style={{ display: 'flex', height: '100svh', alignItems: 'center', justifyContent: 'center' }}>Cargando perfil...</div>
   }
@@ -149,8 +164,6 @@ export default function Profile() {
 
   const led = LED_CONFIG[profileUser?.availabilityState ?? 'unavailable']
 
-  // Derived: Can this viewer see the contact buttons?
-  const isMyProfile = currentUser?.id === profileUser?.id;
   const isPublic = profileUser?.isContactPublic !== false;
   const isAdmin = currentUser?.role === 'admin';
   const canViewFullProfile = isMyProfile || isAdmin || isPublic;
@@ -315,10 +328,9 @@ export default function Profile() {
               </div>
             ) : (
               <>
-                <div className={styles.tabs} role="tablist">
+                <div className={styles.tabsNav} role="tablist">
               <button
-                id="profile-tab-projects"
-                className={`${styles.tab} ${activeTab === 'projects' ? styles.active : ''}`}
+                className={`${styles.tabBtn} ${activeTab === 'projects' ? styles.active : ''}`}
                 onClick={() => setActiveTab('projects')}
                 role="tab"
                 aria-selected={activeTab === 'projects'}
@@ -326,23 +338,32 @@ export default function Profile() {
                 <IconGrid /> Proyectos ({userProjects.length})
               </button>
               <button
-                id="profile-tab-papers"
-                className={`${styles.tab} ${activeTab === 'papers' ? styles.active : ''}`}
+                className={`${styles.tabBtn} ${activeTab === 'papers' ? styles.active : ''}`}
                 onClick={() => setActiveTab('papers')}
                 role="tab"
                 aria-selected={activeTab === 'papers'}
               >
-                <IconPaper /> Papers ({papers.length})
+                <IconPaper /> Publicaciones ({papers.length})
               </button>
               <button
-                id="profile-tab-badges"
-                className={`${styles.tab} ${activeTab === 'badges' ? styles.active : ''}`}
+                className={`${styles.tabBtn} ${activeTab === 'badges' ? styles.active : ''}`}
                 onClick={() => setActiveTab('badges')}
                 role="tab"
                 aria-selected={activeTab === 'badges'}
               >
                 <IconBadge /> Logros ({badges.length})
               </button>
+              {isMyProfile && (
+                <button
+                  className={`${styles.tabBtn} ${activeTab === 'private' ? styles.active : ''}`}
+                  onClick={() => setActiveTab('private')}
+                  role="tab"
+                  aria-selected={activeTab === 'private'}
+                  style={{ color: 'var(--accent-500)', marginLeft: 'auto' }}
+                >
+                  <IconFileText /> En Revisión ({myProjectsList.filter(p => p.status !== 'publico').length})
+                </button>
+              )}
             </div>
 
             {/* ── Tab: Projects ─────────────────────────────────────── */}
@@ -401,6 +422,44 @@ export default function Profile() {
                 )}
               </div>
             )}
+
+            {/* ── Tab: Private ───────────────────────────────────────── */}
+            {activeTab === 'private' && isMyProfile && (
+              <div className={styles.privateContainer}>
+                {myProjectsList.filter(p => p.status !== 'publico').length === 0 ? (
+                  <div className={styles.emptyState}>
+                    <div className={styles.emptyIcon}><IconFileText /></div>
+                    <p className={styles.emptyTitle}>Todo en orden</p>
+                    <p className={styles.emptyText}>No tienes proyectos pendientes, rechazados o que requieran cambios.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {myProjectsList.filter(p => p.status !== 'publico').map((p) => (
+                      <div key={p.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <h4 style={{ margin: '0 0 8px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {p.title} 
+                            <span className={`status-badge status-badge--${p.status === 'pendiente' ? 'pendiente' : 'cambios'}`}>
+                              {p.status === 'pendiente' ? 'Pendiente' : 
+                               p.status === 'requiere_cambios' ? 'Requiere Cambios' : 
+                               p.status === 'denegado' ? 'Denegado' : p.status}
+                            </span>
+                          </h4>
+                          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+                            {p.rejectionReason ? `Nota: ${p.rejectionReason}` : 'En espera de revisión por un administrador.'}
+                          </p>
+                        </div>
+                        {p.status !== 'pendiente' && (
+                          <button className="btn btn-primary btn-sm" onClick={() => setEditingProject(p)}>
+                            <IconEdit /> Editar y Reenviar
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
               </>
             )}
           </div>
@@ -433,6 +492,18 @@ export default function Profile() {
         onClose={() => setIsEditModalOpen(false)}
         profileUser={profileUser}
       />
+      
+      {editingProject && (
+        <EditProjectModal 
+          isOpen={true} 
+          onClose={() => {
+            setEditingProject(null)
+            // Re-fetch to update list
+            getMyProjects().then(res => setMyProjectsList(res.data || [])).catch(console.error)
+          }}
+          projectToEdit={editingProject}
+        />
+      )}
     </div>
   )
 }
