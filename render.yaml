@@ -1,4 +1,15 @@
 services:
+  # ── ClamAV Antivirus Daemon ──
+  - type: pserv
+    name: vire-clamav
+    env: docker
+    region: oregon
+    image:
+      url: clamav/clamav:stable
+    envVars:
+      - key: CLAMD_CONF_TCPAddr
+        value: 0.0.0.0
+
   # ── Backend Service (NestJS API) ──
   - type: web
     name: vire-backend
@@ -21,6 +32,13 @@ services:
           type: web
           name: vire-frontend
           property: url
+      - key: CLAMAV_HOST
+        fromService:
+          type: pserv
+          name: vire-clamav
+          property: host
+      - key: CLAMAV_PORT
+        value: "3310"
 
   # ── Frontend Service (Vite + React Static Site) ──
   - type: web
