@@ -1,0 +1,49 @@
+services:
+  # ── Backend Service (NestJS API) ──
+  - type: web
+    name: vire-backend
+    env: node
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma db push && npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vire-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: 7d
+      - key: CORS_ORIGIN
+        fromService:
+          type: web
+          name: vire-frontend
+          property: url
+
+  # ── Frontend Service (Vite + React Static Site) ──
+  - type: web
+    name: vire-frontend
+    env: static
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: vire-backend
+          property: url
+
+databases:
+  # ── Base de Datos PostgreSQL ──
+  - name: vire-postgres
+    databaseName: vire_db
+    user: vire
+    region: oregon

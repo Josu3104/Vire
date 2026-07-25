@@ -32,7 +32,12 @@ export function GlobalStatsProvider({ children }) {
 
       // Connect socket globally for stats updates
       const token = localStorage.getItem('access_token');
-      socketRef.current = io('/', {
+      const rawApiUrl = import.meta.env.VITE_API_URL;
+      const socketUrl = rawApiUrl && rawApiUrl.startsWith('http')
+        ? rawApiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '')
+        : '/';
+
+      socketRef.current = io(socketUrl, {
         auth: { token },
         transports: ['websocket'],
       });

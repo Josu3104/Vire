@@ -28,19 +28,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private jwtService: JwtService,
     private chatService: ChatService,
     private prisma: PrismaService,
-  ) {}
+  ) { }
 
   async handleConnection(client: Socket) {
     try {
       const token = client.handshake.auth.token || client.handshake.headers['authorization']?.split(' ')[1];
       if (!token) throw new Error('No token');
-      
+
       const payload = this.jwtService.verify(token);
       const userId = payload.sub;
-      
+
       this.connectedClients.set(userId, client.id);
       client.data.userId = userId; // Store userId in socket for O(1) disconnect
-      
+
       // Join a personal room
       client.join(`user_${userId}`);
 
@@ -63,7 +63,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.prisma.user.update({
         where: { id: userId },
         data: { isOnline: false, lastSeen },
-      }).catch(() => {});
+      }).catch(() => { });
       this.server.emit('userStatusChanged', { userId, isOnline: false, lastSeen });
     }
   }
@@ -84,7 +84,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Broadcast to receiver if online
     this.server.to(`user_${data.receiverId}`).emit('newMessage', message);
-    
+
     // Send ack back to sender
     return message;
   }
@@ -103,7 +103,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const chat = await this.prisma.chat.findUnique({
       where: { id: data.chatId }
     });
-    
+
     if (chat) {
       const otherUserId = chat.participant1Id === userId ? chat.participant2Id : chat.participant1Id;
       this.server.to(`user_${otherUserId}`).emit('messagesRead', { chatId: data.chatId });
