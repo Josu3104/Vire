@@ -6,6 +6,7 @@
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  align-self: center;
 }
 
 /* Back button */
@@ -50,13 +51,73 @@
   animation: slideUp 0.5s var(--ease-out) both;
 }
 
-.cover { grid-area: cover; }
+/* === Carousel & Cover === */
+.cover { grid-area: cover; display: flex; align-items: center; justify-content: center; background: var(--bg-surface); }
+
+.carouselContainer {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
 
 .coverImg {
   width: 100%;
-  height: 380px;
+  height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.coverPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  height: 380px;
+}
+
+.carouselBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(15,23,42,0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  backdrop-filter: blur(4px);
+}
+.carouselBtn:hover { background: rgba(15,23,42,0.9); }
+.prevBtn { left: 16px; }
+.nextBtn { right: 16px; }
+
+.carouselIndicators {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  transition: background 0.2s, transform 0.2s;
+}
+.indicator.active {
+  background: white;
+  transform: scale(1.2);
 }
 
 /* === Info Panel === */
@@ -245,10 +306,18 @@
 .votesRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.actionBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .voteScore {
@@ -357,11 +426,27 @@
   opacity: 0.6;
 }
 
-/* Comment form */
 .commentForm {
   display: flex;
   gap: 10px;
   align-items: flex-end;
+  margin-top: 16px;
+}
+
+.commentForm button[type="submit"] {
+  flex-shrink: 0;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.commentForm button[type="submit"] svg {
+  width: 16px;
+  height: 16px;
 }
 
 .commentInput {
@@ -396,6 +481,91 @@
   text-align: center;
 }
 
+/* === Files (Cards) === */
+.files {
+  grid-area: files;
+  padding: 24px;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filesTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.filesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.fileCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+  transition: all var(--duration-fast) ease;
+}
+.fileCard:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.fileIconWrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: rgba(99,102,241,0.1);
+  color: var(--accent-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.fileIconWrapper svg { width: 20px; height: 20px; }
+
+.fileInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.fileName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileSize {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.fileDownloadIcon {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+.fileDownloadIcon svg { width: 18px; height: 18px; }
+.fileCard:hover .fileDownloadIcon { color: var(--accent-500); }
+
+
 @media (max-width: 900px) {
   .bento {
     grid-template-columns: 1fr;
@@ -405,8 +575,9 @@
       "pdf"
       "cad"
       "desc"
+      "files"
       "comments";
   }
-  .coverImg { height: 260px; }
+  .coverImg, .carouselContainer, .coverPlaceholder { height: 260px; }
   .page { padding: 20px 16px 40px; }
 }

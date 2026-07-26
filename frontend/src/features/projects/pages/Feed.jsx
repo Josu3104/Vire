@@ -351,10 +351,10 @@ export default function Feed() {
           )}
         </main>
         
-        {/* Sidebar Right: Widgets (Desktop Only) */}
-        <div className={styles.rightSidebarCol}>
+        {/* Sidebar Right: Widgets (Desktop Only) - Oculto temporalmente a petición del usuario */}
+        {/* <div className={styles.rightSidebarCol}>
           <RightSidebar />
-        </div>
+        </div> */}
       </div>
 
       {/* Auth Modal (Soft-Wall) */}

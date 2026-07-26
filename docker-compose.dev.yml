@@ -34,6 +34,7 @@ services:
       CLAMAV_HOST: clamav
       CLAMAV_PORT: 3310
       S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:5173
       S3_BUCKET: vire-storage
       S3_REGION: us-east-1
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-admin}
