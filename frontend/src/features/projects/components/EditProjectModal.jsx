@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { useAuth } from '@/features/auth/context/AuthContext'
 import { useProjects } from '@/features/projects/context/ProjectContext'
-import { useToast } from '@/core/notifications/ToastContext'
 import styles from './PublishModal.module.css'
 import { TagInput, UserSearchInput } from './FormInputs'
 
@@ -26,7 +25,6 @@ const IconCheck = () => (
 
 function MultiFileUploader({ files, onFilesChange, isUploading, setUploading }) {
   const [uploadProgress, setUploadProgress] = useState(null)
-  const [uploadPercentage, setUploadPercentage] = useState(0)
 
   const getFileType = (file) => {
     if (file.type.includes('image')) return 'IMAGE'
@@ -53,19 +51,12 @@ function MultiFileUploader({ files, onFilesChange, isUploading, setUploading }) 
         setUploadProgress(`Subiendo ${file.name}...`)
         const fileTypeEnum = getFileType(file)
         
-        console.log('[PublishModal] Solicitando URL para', file.name)
         // 1. Pedir ticket
         const res = await requestPresignedUrl(file.name, file.type || 'application/octet-stream', `projects/${fileTypeEnum.toLowerCase()}s`)
         const { uploadUrl, fileKey } = res
-        console.log('[PublishModal] URL obtenida:', uploadUrl)
 
         // 2. Subir
-        console.log('[PublishModal] Iniciando subida directa a S3...')
-        await directS3Upload(uploadUrl, file, (progress) => {
-          console.log('[PublishModal] Progreso:', progress)
-          setUploadPercentage(progress);
-        })
-        console.log('[PublishModal] Subida terminada para', file.name)
+        await directS3Upload(uploadUrl, file)
 
         // 3. Guardar metadatos
         uploadedFiles.push({
@@ -85,7 +76,6 @@ function MultiFileUploader({ files, onFilesChange, isUploading, setUploading }) 
     } finally {
       setUploading(false)
       setUploadProgress(null)
-      setUploadPercentage(0)
       // Reset input
       e.target.value = ''
     }
@@ -101,12 +91,9 @@ function MultiFileUploader({ files, onFilesChange, isUploading, setUploading }) 
       <div className={`${styles.uploaderContainer}`}>
         {isUploading && (
           <div style={{ width: '100%', padding: '0 1rem', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className={styles.uploadText}>{uploadProgress}</span>
-              <span className={styles.uploadText}>{uploadPercentage}%</span>
-            </div>
+            <span className={styles.uploadText}>{uploadProgress}</span>
             <div className={styles.progressContainer}>
-              <div className={styles.progressBar} style={{ width: `${uploadPercentage}%` }} />
+              <div className={styles.progressBar} />
             </div>
           </div>
         )}
@@ -145,26 +132,26 @@ function MultiFileUploader({ files, onFilesChange, isUploading, setUploading }) 
   )
 }
 
-export default function PublishModal({ isOpen, onClose }) {
-  const { addProject } = useProjects()
+export default function EditProjectModal({ isOpen, onClose, projectToEdit }) {
   const { currentUser } = useAuth()
-  const { success, error } = useToast()
-  const [activeTab, setActiveTab] = useState('project') // 'project' | 'paper'
+  const { editProject } = useProjects()
+  const [activeTab, setActiveTab] = useState(projectToEdit?.type === 'paper' ? 'paper' : 'project')
   const [uploadingFields, setUploadingFields] = useState({})
   
   const isAnyUploading = Object.values(uploadingFields).some(Boolean)
 
   // Form State
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    tags: [],
-    advisors: [],
-    files: [], // Unified files array
-    // Paper specific
-    coauthors: [],
-    abstract: '',
-    doi: ''
+    title: projectToEdit?.title || '',
+    description: projectToEdit?.description || '',
+    tags: Array.isArray(projectToEdit?.tags) ? projectToEdit.tags : (projectToEdit?.tags ? JSON.parse(projectToEdit.tags) : []),
+    advisors: Array.isArray(projectToEdit?.advisors) ? projectToEdit.advisors : [],
+    files: Array.isArray(projectToEdit?.files) ? projectToEdit.files : (projectToEdit?.files ? JSON.parse(projectToEdit.files) : []),
+    coauthors: typeof projectToEdit?.coauthors === 'string' && projectToEdit.coauthors 
+      ? projectToEdit.coauthors.split(',').map(name => ({ id: name.trim(), name: name.trim() })) 
+      : [],
+    abstract: projectToEdit?.abstract || projectToEdit?.description || '',
+    doi: projectToEdit?.doi || ''
   })
 
   if (!isOpen) return null
@@ -173,70 +160,38 @@ export default function PublishModal({ isOpen, onClose }) {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
 
-    try {
-      if (activeTab === 'project') {
-        await addProject({
-          type: 'project',
-          title: formData.title,
-          description: formData.description,
-          tags: formData.tags,
-          coauthors: formData.coauthors?.length > 0 ? formData.coauthors.map(u => u.name).join(', ') : undefined,
-          university: currentUser.university || 'Independiente',
-          branch: 'Ingeniería',
-          advisors: formData.advisors,
-          files: formData.files
-        })
-      } else {
-        // For paper, ensure there's at least one PDF if files are uploaded
-        const paperFiles = formData.files;
-        await addProject({
-          type: 'paper',
-          title: formData.title,
-          coauthors: formData.coauthors?.length > 0 ? formData.coauthors.map(u => u.name).join(', ') : undefined,
-          description: formData.abstract, // mapped to description
-          doi: formData.doi || null,
-          files: paperFiles,
-          university: currentUser.university || 'Independiente',
-          branch: currentUser.branch || 'Ingeniería',
-          journal: 'Publicación Independiente',
-          year: new Date().getFullYear(),
-          advisors: []
-        })
-      }
-      success('Enviado a revisión. Puedes ver su estado en tu Perfil.')
-      onClose()
-    } catch (err) {
-      console.error(err)
-      error('Ocurrió un error al publicar el proyecto.')
+    if (activeTab === 'project') {
+      editProject(projectToEdit.id, {
+        type: 'project',
+        title: formData.title,
+        description: formData.description,
+        tags: formData.tags,
+        advisors: formData.advisors,
+        files: formData.files
+      })
+    } else {
+      editProject(projectToEdit.id, {
+        type: 'paper',
+        title: formData.title,
+        coauthors: formData.coauthors.map(u => u.name).join(', '),
+        abstract: formData.abstract, // mapped to description
+        doi: formData.doi || null,
+        files: formData.files,
+      })
     }
+
+    onClose()
   }
-  const otherUsers = [] // users.filter((u) => u.id !== currentUser?.id && u.role !== 'empleador')
+  
   return (
     <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Nueva Publicación</h2>
+          <h2 className={styles.title}>Editar Publicación Rechazada</h2>
           <button className={styles.closeBtn} onClick={onClose}><IconX /></button>
-        </div>
-
-        <div className={styles.tabs}>
-          <button
-            type="button"
-            className={`${styles.tab} ${activeTab === 'project' ? styles.active : ''}`}
-            onClick={() => setActiveTab('project')}
-          >
-            Proyecto Técnico
-          </button>
-          <button
-            type="button"
-            className={`${styles.tab} ${activeTab === 'paper' ? styles.active : ''}`}
-            onClick={() => setActiveTab('paper')}
-          >
-            Paper de Investigación
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
@@ -255,12 +210,6 @@ export default function PublishModal({ isOpen, onClose }) {
                 placeholder="Ej: Robótica, Visión Artificial (Presiona Enter)"
                 value={formData.tags}
                 onChange={(val) => setFormData(p => ({ ...p, tags: val }))}
-              />
-
-              <UserSearchInput 
-                label="Añadir Co-autores / Equipo"
-                selectedUsers={formData.coauthors}
-                onChange={(val) => setFormData(p => ({ ...p, coauthors: val }))}
               />
 
               <TagInput 
@@ -309,7 +258,7 @@ export default function PublishModal({ isOpen, onClose }) {
 
           <div className={styles.footer}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={isAnyUploading}>
+            <button type="submit" className={styles.submitBtn} disabled={isAnyUploading}>
               {isAnyUploading ? 'Cargando archivos...' : 'Enviar a Revisión'}
             </button>
           </div>

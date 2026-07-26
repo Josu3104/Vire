@@ -215,7 +215,7 @@ export default function Navbar() {
       </nav>
 
       {/* Publish Modal */}
-      <PublishModal isOpen={publishModalOpen} onClose={() => setPublishModalOpen(false)} />
+      {publishModalOpen && <PublishModal isOpen={publishModalOpen} onClose={() => setPublishModalOpen(false)} />}
     </>
   )
 }

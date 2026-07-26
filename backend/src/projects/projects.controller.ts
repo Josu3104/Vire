@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request, Query, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request, Query, Delete, Patch, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -24,7 +24,7 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Create a new project' })
   async create(
     @Request() req: any,
-    @Body() body: CreateProjectDto & { coverImageKey?: string, pdfKey?: string, cadKey?: string },
+    @Body() body: CreateProjectDto,
   ) {
     const userId = req.user.id;
     
@@ -37,25 +37,39 @@ export class ProjectsController {
       university: body.university,
       branch: body.branch,
       description: body.description,
+      type: body.type,
+      abstract: body.abstract,
+      doi: body.doi,
+      year: body.year,
+      journal: body.journal,
+      coauthors: body.coauthors,
       tags,
       advisors,
       academicLevel: body.academicLevel || 'universitario',
+      files: body.files,
     };
 
     return this.projectsService.createProject(
       userId, 
-      projectData as any, 
-      body.coverImageKey, 
-      body.pdfKey,
-      body.cadKey
+      projectData as any
     );
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all projects' })
-  @ApiQuery({ name: 'status', enum: ProjectStatus, required: false })
-  async findAll(@Query('status') status?: ProjectStatus) {
+  @ApiOperation({ summary: 'Get all public projects (Admin can filter by status)' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by status or "all"' })
+  async findAll(@Query('status') status?: ProjectStatus | 'all') {
+    // Note: In a real app we'd check if the user is an admin before allowing non-public status queries.
+    // For this prototype, we'll allow it if passed, but default to public.
     return this.projectsService.findAll(status);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('me')
+  @ApiOperation({ summary: 'Get all projects authored by current user' })
+  async findMyProjects(@Request() req: any) {
+    return this.projectsService.findUserProjects(req.user.id);
   }
 
   @Get('trending-tags')
@@ -74,6 +88,32 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Get project by ID' })
   async findOne(@Param('id') id: string) {
     return this.projectsService.findOne(+id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Update project status (Admin)' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body('status') status: ProjectStatus,
+    @Body('rejectionReason') rejectionReason?: string,
+  ) {
+    // In a real app we would check req.user.role === 'admin' here
+    return this.projectsService.updateStatus(+id, status, req.user.id, rejectionReason);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Put(':id')
+  @ApiOperation({ summary: 'Update a project (Author only)' })
+  async updateProject(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: any
+  ) {
+    return this.projectsService.updateProject(+id, req.user.id, body);
   }
 
   @UseGuards(JwtAuthGuard)

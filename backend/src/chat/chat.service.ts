@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { StorageService } from '../storage/storage.service';
+import { StorageProvider } from '../storage/storage.provider';
 import { ScannerService } from '../scanner/scanner.service';
 
 @Injectable()
 export class ChatService {
   constructor(
     private prisma: PrismaService,
-    private storageService: StorageService,
+    private storageService: StorageProvider,
     private scannerService: ScannerService,
   ) {}
 

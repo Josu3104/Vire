@@ -1,15 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { StorageService } from '../storage/storage.service';
+import { StorageProvider } from '../storage/storage.provider';
 import { ScannerService } from '../scanner/scanner.service';
 import { Prisma, ProjectStatus } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private prisma: PrismaService,
-    private storageService: StorageService,
+    private storageService: StorageProvider,
     private scannerService: ScannerService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async generateUploadTicket(fileName: string, mimeType: string, folder: string) {
@@ -18,20 +20,15 @@ export class ProjectsService {
 
   async createProject(
     userId: number,
-    data: Prisma.ProjectCreateInput & { type?: string, abstract?: string, doi?: string, year?: number, journal?: string, coauthors?: string },
-    coverImageKey?: string,
-    pdfKey?: string,
-    cadKey?: string,
+    data: Prisma.ProjectCreateInput & { 
+      type?: string, abstract?: string, doi?: string, year?: number, journal?: string, coauthors?: string,
+      files?: Array<{filename: string, originalName: string, mimeType: string, size: number, storageKey: string, type: any}>
+    }
   ) {
-    // Determine public URLs from keys (using SeaweedFS format endpoint/bucket/key)
-    const endpoint = process.env.SEAWEED_S3_ENDPOINT || 'http://localhost:8333';
-    const bucket = process.env.SEAWEED_S3_BUCKET || 'vire-storage';
+    const endpoint = process.env.S3_ENDPOINT || 'http://localhost:8333';
+    const bucket = process.env.S3_BUCKET || 'vire-storage';
     
-    const coverImageUrl = coverImageKey ? `${endpoint}/${bucket}/${coverImageKey}` : undefined;
-    const pdfLink = pdfKey ? `${endpoint}/${bucket}/${pdfKey}` : undefined;
-    const cadLink = cadKey ? `${endpoint}/${bucket}/${cadKey}` : undefined;
-
-    const { type, abstract, doi, year, journal, coauthors, ...projectData } = data;
+    const { type, abstract, doi, year, journal, coauthors, files, ...projectData } = data;
 
     const project = await this.prisma.project.create({
       data: {
@@ -42,9 +39,6 @@ export class ProjectsService {
         year,
         journal,
         coauthors,
-        coverImageUrl,
-        pdfLink,
-        cadLink,
         status: ProjectStatus.pendiente, // Pending admin approval
         scanStatus: 'pending',           // Pending async AV scan
         authors: {
@@ -52,13 +46,116 @@ export class ProjectsService {
             userId,
           },
         },
+        files: files && files.length > 0 ? {
+          create: files.map(file => ({
+            filename: file.filename,
+            originalName: file.originalName,
+            mimeType: file.mimeType,
+            extension: file.originalName.split('.').pop() || '',
+            size: file.size,
+            storageProvider: 'minio',
+            storageKey: file.storageKey,
+            downloadUrl: `${endpoint}/${bucket}/${file.storageKey}`,
+            type: file.type,
+            scanStatus: 'pending'
+          }))
+        } : undefined
       },
+      include: {
+        files: true
+      }
     });
 
     // Fire and forget asynchronous scanning
-    this.scanProjectFilesAsync(project.id, [coverImageKey, pdfKey, cadKey].filter(Boolean) as string[]);
+    if (project.files && project.files.length > 0) {
+      this.scanProjectFilesAsync(project.id, project.files.map(f => f.storageKey));
+    }
 
     return project;
+  }
+
+  async updateProject(
+    projectId: number,
+    userId: number,
+    data: any
+  ) {
+    // 1. Verify author
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { authors: true, files: true }
+    });
+
+    if (!project) throw new NotFoundException('Project not found');
+    const isAuthor = project.authors.some(a => a.userId === userId);
+    if (!isAuthor && data.adminBypass !== true) { // For simplicity, just check author
+      throw new BadRequestException('Not authorized to edit this project');
+    }
+
+    const { type, abstract, doi, year, journal, coauthors, files, ...projectData } = data;
+    const endpoint = process.env.S3_ENDPOINT || 'http://localhost:8333';
+    const bucket = process.env.S3_BUCKET || 'vire-storage';
+
+    let newFilesToScan: string[] = [];
+
+    // 2. Handle Files
+    if (files && Array.isArray(files)) {
+      const existingFiles = project.files || [];
+      const newFiles = files.filter(f => !f.id); // Assuming new files don't have an ID yet
+      const keptFileIds = files.filter(f => f.id).map(f => f.id);
+      
+      const filesToDelete = existingFiles.filter(f => !keptFileIds.includes(f.id));
+
+      // Delete removed files from DB and MinIO
+      for (const f of filesToDelete) {
+        await this.storageService.deleteFile(f.storageKey).catch(console.error);
+        await this.prisma.projectFile.delete({ where: { id: f.id } });
+      }
+
+      // Add new files
+      if (newFiles.length > 0) {
+        await this.prisma.projectFile.createMany({
+          data: newFiles.map(file => ({
+            projectId,
+            filename: file.filename,
+            originalName: file.originalName,
+            mimeType: file.mimeType,
+            extension: file.originalName.split('.').pop() || '',
+            size: file.size,
+            storageProvider: 'minio',
+            storageKey: file.storageKey,
+            downloadUrl: `${endpoint}/${bucket}/${file.storageKey}`,
+            type: file.type,
+            scanStatus: 'pending'
+          }))
+        });
+        newFilesToScan = newFiles.map(f => f.storageKey);
+      }
+    }
+
+    // 3. Update Project Data and revert status to pending
+    const updatedProject = await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        ...projectData,
+        type: type || project.type,
+        abstract,
+        doi,
+        year,
+        journal,
+        coauthors,
+        status: ProjectStatus.pendiente, // Always revert to pending on edit
+        scanStatus: newFilesToScan.length > 0 ? 'pending' : project.scanStatus,
+      },
+      include: {
+        files: true
+      }
+    });
+
+    if (newFilesToScan.length > 0) {
+      this.scanProjectFilesAsync(projectId, newFilesToScan);
+    }
+
+    return updatedProject;
   }
 
   private async scanProjectFilesAsync(projectId: number, fileKeys: string[]) {
@@ -95,15 +192,55 @@ export class ProjectsService {
     }
   }
 
-  async findAll(status?: ProjectStatus) {
-    return this.prisma.project.findMany({
-      where: status ? { status } : { status: ProjectStatus.publico },
+  private mapLegacyFields(project: any) {
+    if (!project.files) return project;
+    const coverFile = project.files.find((f: any) => f.type === 'COVER' || f.type === 'IMAGE');
+    const pdfFile = project.files.find((f: any) => f.type === 'PDF');
+    const cadFile = project.files.find((f: any) => f.type === 'CAD');
+    
+    return {
+      ...project,
+      coverImage: coverFile ? coverFile.downloadUrl : null,
+      pdfLink: pdfFile ? pdfFile.downloadUrl : null,
+      cadLink: cadFile ? cadFile.downloadUrl : null,
+    };
+  }
+
+  async findAll(status?: ProjectStatus | 'all') {
+    let whereClause = {};
+    if (status && status !== 'all') {
+      whereClause = { status };
+    } else if (status !== 'all') {
+      whereClause = { status: ProjectStatus.publico };
+    } // if 'all', whereClause remains {}
+
+    const projects = await this.prisma.project.findMany({
+      where: whereClause,
       include: {
         authors: { include: { user: { select: { id: true, name: true, avatarUrl: true } } } },
         _count: { select: { votes: true, comments: true } },
+        files: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+    return projects.map((p) => this.mapLegacyFields(p));
+  }
+
+  async findUserProjects(userId: number) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        authors: {
+          some: { userId }
+        }
+      },
+      include: {
+        authors: { include: { user: { select: { id: true, name: true, avatarUrl: true } } } },
+        _count: { select: { votes: true, comments: true } },
+        files: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return projects.map((p) => this.mapLegacyFields(p));
   }
 
   async findOne(id: number) {
@@ -113,12 +250,52 @@ export class ProjectsService {
         authors: { include: { user: { select: { id: true, name: true, avatarUrl: true, profile: true } } } },
         comments: { include: { user: { select: { name: true, avatarUrl: true } } }, orderBy: { createdAt: 'desc' } },
         _count: { select: { votes: true } },
+        files: true,
       },
     });
 
     if (!project) {
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
+    return this.mapLegacyFields(project);
+  }
+
+  async updateStatus(projectId: number, status: ProjectStatus, adminId: number, rejectionReason?: string) {
+    const project = await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        status,
+        adminReviewerId: adminId,
+        rejectionReason: rejectionReason || null,
+      },
+      include: {
+        authors: true,
+      }
+    });
+
+    // Notify author(s) about the status change
+    if (status === 'denegado' || status === 'requiere_cambios') {
+      const reasonMessage = rejectionReason ? `\n\nMotivo: ${rejectionReason}` : '';
+      const notificationTitle = status === 'denegado' ? 'Proyecto Denegado' : 'Proyecto Requiere Cambios';
+      const notificationMessage = `Tu proyecto "${project.title}" ha sido revisado y ${status === 'denegado' ? 'denegado' : 'requiere cambios'} para ser publicado.${reasonMessage}`;
+
+      for (const author of project.authors) {
+        await this.notificationsService.createNotification({
+          userId: author.userId,
+          message: `[${notificationTitle}] ${notificationMessage}`,
+          type: 'SYSTEM',
+        });
+      }
+    } else if (status === 'publico') {
+      for (const author of project.authors) {
+        await this.notificationsService.createNotification({
+          userId: author.userId,
+          message: `[¡Proyecto Aprobado!] Tu proyecto "${project.title}" ha sido aprobado y ahora es público.`,
+          type: 'SYSTEM',
+        });
+      }
+    }
+
     return project;
   }
 

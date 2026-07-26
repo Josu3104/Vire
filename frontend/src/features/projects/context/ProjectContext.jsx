@@ -93,11 +93,29 @@ export function ProjectProvider({ children }) {
     }
   }, []);
 
-  const updateProjectStatus = useCallback((projectId, status) => {
-    // In real app, this would call admin API
-    setProjectsState(prev => prev.map(p => 
-      p.id === projectId ? { ...p, status } : p
-    ));
+  const updateProjectStatus = useCallback(async (projectId, status, reason = null) => {
+    try {
+      await projectsApi.updateProjectStatus(projectId, status, reason);
+      setProjectsState(prev => prev.map(p => 
+        p.id === projectId ? { ...p, status } : p
+      ));
+    } catch (error) {
+      console.error('Error updating project status', error);
+      throw error;
+    }
+  }, []);
+
+  const editProject = useCallback(async (projectId, projectData) => {
+    try {
+      const updatedProject = await projectsApi.updateProject(projectId, projectData);
+      setProjectsState(prev => prev.map(p => 
+        p.id === projectId ? { ...updatedProject, status: 'Pendiente' } : p
+      ));
+      return updatedProject;
+    } catch (error) {
+      console.error('Error editing project', error);
+      throw error;
+    }
   }, []);
 
   const contextValue = useMemo(() => ({
@@ -105,11 +123,12 @@ export function ProjectProvider({ children }) {
     loading,
     refreshProjects: fetchProjects,
     addProject,
+    editProject,
     toggleUpvoteProject,
     toggleDownvoteProject,
     addCommentToProject,
     updateProjectStatus
-  }), [projectsState, loading, fetchProjects, addProject, toggleUpvoteProject, toggleDownvoteProject, addCommentToProject, updateProjectStatus]);
+  }), [projectsState, loading, fetchProjects, addProject, editProject, toggleUpvoteProject, toggleDownvoteProject, addCommentToProject, updateProjectStatus]);
 
   return (
     <ProjectContext.Provider value={contextValue}>
