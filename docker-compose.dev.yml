@@ -25,7 +25,7 @@ services:
       target: builder
     image: vire-backend-dev
     container_name: vire-backend-dev
-    command: sh -c "npx prisma generate && npm run start:dev"
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npm run start:dev"
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://vire:${POSTGRES_PASSWORD:-vire_dev_2026}@postgres:5432/vire_db
@@ -33,11 +33,11 @@ services:
       JWT_EXPIRATION: 7d
       CLAMAV_HOST: clamav
       CLAMAV_PORT: 3310
-      SEAWEED_S3_ENDPOINT: http://seaweed-filer:8333
-      SEAWEED_S3_BUCKET: vire-storage
-      SEAWEED_S3_REGION: us-east-1
-      SEAWEED_ACCESS_KEY: ${SEAWEED_ACCESS_KEY:-admin}
-      SEAWEED_SECRET_KEY: ${SEAWEED_SECRET_KEY:-admin}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: vire-storage
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-admin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-admin1234}
       CORS_ORIGIN: http://localhost:5173
       BREVO_API_KEY: ${BREVO_API_KEY:-""}
     ports:
@@ -50,8 +50,8 @@ services:
         condition: service_healthy
       clamav:
         condition: service_healthy
-      seaweed-filer:
-        condition: service_started
+      minio:
+        condition: service_healthy
 
   postgres:
     image: postgres:16-alpine
@@ -71,34 +71,38 @@ services:
       timeout: 5s
       retries: 5
 
-  seaweed-master:
-    image: chrislusf/seaweedfs:latest
-    container_name: vire-seaweed-master-dev
-    command: "master -ip=seaweed-master -port=9333"
+  minio:
+    image: minio/minio:latest
+    container_name: vire-minio-dev
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-admin1234}
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     ports:
-      - "9333:9333"
-
-  seaweed-volume:
-    image: chrislusf/seaweedfs:latest
-    container_name: vire-seaweed-volume-dev
-    command: "volume -mserver=seaweed-master:9333 -port=8080 -ip=seaweed-volume -max=100"
-    depends_on:
-      - seaweed-master
-    ports:
-      - "8080:8080"
-
-  seaweed-filer:
-    image: chrislusf/seaweedfs:latest
-    container_name: vire-seaweed-filer-dev
-    command: "filer -master=seaweed-master:9333 -port=8888 -s3 -s3.port=8333"
-    depends_on:
-      - seaweed-master
-      - seaweed-volume
-    ports:
-      - "8888:8888"
-      - "8333:8333"
+      - "8333:9000"
+      - "9001:9001"
     volumes:
-      - seaweed_data_dev:/data
+      - minio_data_dev:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-create-bucket:
+    image: minio/mc
+    container_name: vire-minio-setup-dev
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 ${S3_ACCESS_KEY:-admin} ${S3_SECRET_KEY:-admin1234};
+      /usr/bin/mc mb myminio/vire-storage --ignore-existing;
+      /usr/bin/mc anonymous set public myminio/vire-storage;
+      exit 0;
+      "
 
   clamav:
     image: clamav/clamav:stable
@@ -117,5 +121,5 @@ services:
 
 volumes:
   postgres_data_dev:
-  seaweed_data_dev:
+  minio_data_dev:
   clamav_data_dev:

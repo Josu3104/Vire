@@ -4,30 +4,43 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } fro
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
+import { StorageProvider } from './storage.provider';
 
 @Injectable()
-export class StorageService {
+export class MinIOStorageProvider implements StorageProvider {
   private s3Client: S3Client;
+  private presignClient: S3Client;
   private bucket: string;
   private publicEndpoint: string;
 
   constructor(private configService: ConfigService) {
-    const endpoint = this.configService.get<string>('storage.endpoint') || 'http://localhost:8333';
-    this.bucket = this.configService.get<string>('storage.bucket') || 'vire-storage';
-    this.publicEndpoint = endpoint;
+    const endpoint = this.configService.get<string>('S3_ENDPOINT') || 'http://localhost:8333';
+    this.bucket = this.configService.get<string>('S3_BUCKET') || 'vire-storage';
+    // For local dev, S3_ENDPOINT is usually 'http://minio:9000', but publicEndpoint should be 'http://127.0.0.1:8333'
+    // To keep it simple, we check if it includes 'minio'
+    this.publicEndpoint = endpoint.includes('minio') ? 'http://127.0.0.1:8333' : endpoint;
     
+    const credentials = {
+      accessKeyId: this.configService.get<string>('S3_ACCESS_KEY') || 'admin',
+      secretAccessKey: this.configService.get<string>('S3_SECRET_KEY') || 'admin1234',
+    };
+    const region = this.configService.get<string>('S3_REGION') || 'us-east-1';
+
     this.s3Client = new S3Client({
       endpoint,
-      region: this.configService.get<string>('storage.region') || 'us-east-1',
-      credentials: {
-        accessKeyId: this.configService.get<string>('storage.accessKey') || 'admin',
-        secretAccessKey: this.configService.get<string>('storage.secretKey') || 'admin',
-      },
-      forcePathStyle: true, // Needed for SeaweedFS S3 API
+      region,
+      credentials,
+      forcePathStyle: true, // Necessary for MinIO and S3-compatible storages
+    });
+
+    this.presignClient = new S3Client({
+      endpoint: this.publicEndpoint,
+      region,
+      credentials,
+      forcePathStyle: true,
     });
   }
 
-  // Permite subir directamente a memoria (fallback para archivos muy pequeños)
   async uploadFile(file: Express.Multer.File, folder: string = 'general'): Promise<string> {
     const fileExtension = file.originalname.split('.').pop();
     const uniqueFileName = `${folder}/${uuidv4()}.${fileExtension}`;
@@ -44,12 +57,11 @@ export class StorageService {
 
       return `${this.publicEndpoint}/${this.bucket}/${uniqueFileName}`;
     } catch (error) {
-      console.error('Error uploading to SeaweedFS:', error);
+      console.error('Error uploading to MinIO:', error);
       throw new InternalServerErrorException('Could not upload file to storage');
     }
   }
 
-  // Genera URL presignada para que el frontend suba directo a S3
   async generatePresignedUrl(folder: string, originalName: string, mimeType: string): Promise<{ uploadUrl: string, fileKey: string, publicUrl: string }> {
     const fileExtension = originalName.split('.').pop();
     const uniqueFileName = `${folder}/${uuidv4()}.${fileExtension}`;
@@ -62,7 +74,7 @@ export class StorageService {
       });
 
       // La URL expira en 15 minutos
-      const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 900 });
+      const uploadUrl = await getSignedUrl(this.presignClient, command, { expiresIn: 900 });
       const publicUrl = `${this.publicEndpoint}/${this.bucket}/${uniqueFileName}`;
 
       return { uploadUrl, fileKey: uniqueFileName, publicUrl };
@@ -72,7 +84,6 @@ export class StorageService {
     }
   }
 
-  // Obtiene un stream de lectura para escanear archivos sin cargarlos en memoria RAM
   async getFileStream(fileKey: string): Promise<Readable> {
     try {
       const command = new GetObjectCommand({
@@ -87,7 +98,6 @@ export class StorageService {
     }
   }
 
-  // Borrar un objeto de SeaweedFS (por ejemplo, si tiene virus)
   async deleteFile(fileKey: string): Promise<void> {
     try {
       const command = new DeleteObjectCommand({

@@ -68,23 +68,15 @@ export class CreateProjectDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsString()
-  coverImageUrl?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  pdfLink?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  cadLink?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  videoUrl?: string;
+  @IsArray()
+  files?: Array<{
+    filename: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    storageKey: string;
+    type: string;
+  }>;
 }
 
 export class PresignProjectDto {

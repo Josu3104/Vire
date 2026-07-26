@@ -328,11 +328,6 @@ export default function Feed() {
                 ) : (
                   <div className={styles.emptyState}>
                     <p>No se encontraron proyectos con esos filtros.</p>
-                    {searchQuery.length > 0 && (
-                      <button className="btn btn-secondary btn-sm" style={{ marginTop: '16px' }} onClick={() => setSearchQuery('')}>
-                        Limpiar búsqueda
-                      </button>
-                    )}
                   </div>
                 )
               )}
