@@ -286,9 +286,14 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
 
             {/* ── File indicators ── */}
             <div className={styles.indicators} aria-label="Archivos disponibles">
-              {project.pdfLink && (
-                <span className={`${styles.indicator} ${styles.indicatorPdf}`} title="Incluye Paper PDF">
+              {project.type === 'paper' && (
+                <span className={`${styles.indicator} ${styles.indicatorPdf}`} title="Paper académico">
                   <IconFilePdf /> Paper
+                </span>
+              )}
+              {project.pdfLink && project.type !== 'paper' && (
+                <span className={`${styles.indicator} ${styles.indicatorPdf}`} title="Incluye Paper PDF">
+                  <IconFilePdf /> PDF
                 </span>
               )}
               {project.cadLink && (
@@ -296,7 +301,6 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
                   <IconBox /> CAD/3D
                 </span>
               )}
-              {/* Infer code availability from tags */}
               {Array.isArray(project.tags) && project.tags.some(t => ['IoT', 'ESP32', 'Machine Learning', 'Deep Learning', 'Robótica'].includes(t)) && (
                 <span className={`${styles.indicator} ${styles.indicatorCode}`} title="Proyecto incluye software/código">
                   <IconCode /> Código

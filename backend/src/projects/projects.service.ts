@@ -25,7 +25,7 @@ export class ProjectsService {
       files?: Array<{filename: string, originalName: string, mimeType: string, size: number, storageKey: string, type: any}>
     }
   ) {
-    const endpoint = process.env.S3_ENDPOINT || 'http://localhost:8333';
+    const endpoint = process.env.S3_PUBLIC_ENDPOINT || 'http://localhost:8333';
     const bucket = process.env.S3_BUCKET || 'vire-storage';
     
     const { type, abstract, doi, year, journal, coauthors, files, ...projectData } = data;
@@ -92,7 +92,7 @@ export class ProjectsService {
     }
 
     const { type, abstract, doi, year, journal, coauthors, files, ...projectData } = data;
-    const endpoint = process.env.S3_ENDPOINT || 'http://localhost:8333';
+    const endpoint = process.env.S3_PUBLIC_ENDPOINT || 'http://localhost:8333';
     const bucket = process.env.S3_BUCKET || 'vire-storage';
 
     let newFilesToScan: string[] = [];
@@ -193,13 +193,22 @@ export class ProjectsService {
   }
 
   private mapLegacyFields(project: any) {
-    if (!project.files) return project;
+    if (!project) return project;
+    
+    const upvotedBy = project.votes?.filter((v: any) => v.isUpvote).map((v: any) => v.userId) || [];
+    const downvotedBy = project.votes?.filter((v: any) => !v.isUpvote).map((v: any) => v.userId) || [];
+
+    if (!project.files) {
+      return { ...project, upvotedBy, downvotedBy };
+    }
     const coverFile = project.files.find((f: any) => f.type === 'COVER' || f.type === 'IMAGE');
     const pdfFile = project.files.find((f: any) => f.type === 'PDF');
     const cadFile = project.files.find((f: any) => f.type === 'CAD');
     
     return {
       ...project,
+      upvotedBy,
+      downvotedBy,
       coverImage: coverFile ? coverFile.downloadUrl : null,
       pdfLink: pdfFile ? pdfFile.downloadUrl : null,
       cadLink: cadFile ? cadFile.downloadUrl : null,
@@ -220,6 +229,7 @@ export class ProjectsService {
         authors: { include: { user: { select: { id: true, name: true, avatarUrl: true } } } },
         _count: { select: { votes: true, comments: true } },
         files: true,
+        votes: { select: { userId: true, isUpvote: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -237,6 +247,7 @@ export class ProjectsService {
         authors: { include: { user: { select: { id: true, name: true, avatarUrl: true } } } },
         _count: { select: { votes: true, comments: true } },
         files: true,
+        votes: { select: { userId: true, isUpvote: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -251,6 +262,7 @@ export class ProjectsService {
         comments: { include: { user: { select: { name: true, avatarUrl: true } } }, orderBy: { createdAt: 'desc' } },
         _count: { select: { votes: true } },
         files: true,
+        votes: { select: { userId: true, isUpvote: true } },
       },
     });
 

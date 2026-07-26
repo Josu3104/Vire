@@ -1,5 +1,5 @@
 // src/pages/Project.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/context/AuthContext'
 import { useProjects } from '@/features/projects/context/ProjectContext'
@@ -20,6 +20,28 @@ const IconChevronUp = () => (
 const IconChevronDown = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="6 9 12 15 18 9" />
+  </svg>
+)
+const IconMessage = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+)
+const IconDownload = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+)
+const IconChevronLeft = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+)
+const IconChevronRight = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6" />
   </svg>
 )
 const IconFilePdf = () => (
@@ -47,25 +69,69 @@ export default function ProjectDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentUser, isAuthenticated } = useAuth()
-  const { projectsState, toggleUpvoteProject, addCommentToProject } = useProjects()
-  const { error, info } = useToast()
+  const { projectsState, toggleUpvoteProject, toggleDownvoteProject, addCommentToProject } = useProjects()
+  const { error } = useToast()
 
-  // Match string or number ID
-  const project = projectsState.find((p) => String(p.id) === String(id))
+  const [commentText, setCommentText] = useState('')
+  const [currentImageIdx, setCurrentImageIdx] = useState(0)
+  const [detailProject, setDetailProject] = useState(null)
+
+  // Fetch full detail (with comments) when entering
+  useEffect(() => {
+    import('@/features/projects/api/projects.api').then(api => {
+      api.getProjectById(id)
+        .then(p => {
+          if (!p) return
+          const mapped = {
+            ...p,
+            upvotes: p.upvotes || 0,
+            downvotes: p.downvotes || 0,
+            author: p.authors?.[0]?.user?.name || 'Usuario',
+            authorIds: p.authors?.map(a => a.user.id) || [],
+            authorsData: p.authors?.map(a => ({ ...a.user, avatar: a.user.avatarUrl || null })) || [],
+            upvotedBy: p.upvotedBy || [],
+            downvotedBy: p.downvotedBy || [],
+            comments: (p.comments || []).map(c => ({
+              id: c.id,
+              userId: c.userId,
+              userName: c.user?.name || 'Usuario',
+              avatar: c.user?.avatarUrl || null,
+              text: c.text,
+              createdAt: c.createdAt,
+              isHiddenByAuthor: c.isHiddenByAuthor || false,
+            })),
+          }
+          setDetailProject(mapped)
+        })
+        .catch(() => {/* fall back to context */})
+    })
+  }, [id])
+
+  // Merge context state (for optimistic updates) with detail data
+  const contextProject = projectsState.find((p) => String(p.id) === String(id))
+  // Prefer context for votes (optimistic) but detail for comments
+  const project = contextProject
+    ? {
+        ...detailProject,
+        ...contextProject,
+        comments: detailProject?.comments || contextProject?.comments || [],
+        coverImage: contextProject.coverImage || detailProject?.coverImage,
+        files: contextProject.files || detailProject?.files,
+      }
+    : detailProject
+
   const author = project?.authorsData?.[0] || null
   const isTeam = project?.authorIds && project.authorIds.length > 1
   const teamNames = isTeam
     ? project.authorsData?.map(u => u.name).filter(Boolean).join(', ')
     : ''
 
-  const [commentText, setCommentText] = useState('')
-
   if (!project) {
     return (
       <div className={styles.page}>
         <div className={styles.notFound}>
-          <h2>Proyecto no encontrado</h2>
-          <p style={{ color: 'var(--text-muted)' }}>El proyecto que buscas no existe o fue eliminado.</p>
+          <h2>Cargando proyecto...</h2>
+          <p style={{ color: 'var(--text-muted)' }}>Por favor espera un momento.</p>
           <button className="btn btn-secondary" onClick={() => navigate('/explorar')} style={{ marginTop: 12 }}>
             Volver al Feed
           </button>
@@ -74,39 +140,70 @@ export default function ProjectDetail() {
     )
   }
 
-  // ── Adaptive Bento: compute which iFrame panels exist ──
-  const hasPdf = Boolean(project.pdfLink)
-  const hasCad = Boolean(project.cadLink)
+  const coverFiles = project.files?.filter(f => f.type === 'COVER') || []
+  const imageFiles = project.files?.filter(f => f.type === 'IMAGE') || []
+  const carouselImages = [...coverFiles, ...imageFiles].map(f => f.downloadUrl).filter(Boolean)
+  if (carouselImages.length === 0 && project.coverImage) {
+    carouselImages.push(project.coverImage)
+  }
 
-  const bentoAreas = !hasPdf && !hasCad
-    ? '"cover info" "desc desc" "comments comments"'
-    : !hasCad
-      ? '"cover info" "pdf pdf" "desc desc" "comments comments"'
-      : !hasPdf
-        ? '"cover info" "cad cad" "desc desc" "comments comments"'
-        : '"cover info" "pdf cad" "desc desc" "comments comments"'
+  const otherFiles = project.files?.filter(f => !['COVER', 'IMAGE'].includes(f.type)) || []
+  if (project.pdfLink && !otherFiles.some(f => f.downloadUrl === project.pdfLink)) {
+    otherFiles.push({ type: 'PDF', downloadUrl: project.pdfLink, originalName: 'Documento Técnico.pdf', size: 0 })
+  }
+  if (project.cadLink && !otherFiles.some(f => f.downloadUrl === project.cadLink)) {
+    otherFiles.push({ type: 'CAD', downloadUrl: project.cadLink, originalName: 'Modelo 3D.zip', size: 0 })
+  }
+
+  // ── Adaptive Bento: compute layout ──
+  const filesRow = otherFiles.length > 0 ? '"files files"' : ''
+
+  const bentoAreas = [
+    '"cover info"',
+    '"desc desc"',
+    filesRow,
+    '"comments comments"'
+  ].filter(Boolean).join(' ')
 
   const userVote = currentUser && project.upvotedBy?.includes(currentUser.id) ? 'up' : currentUser && project.downvotedBy?.includes(currentUser.id) ? 'down' : null
 
-  const handleVote = (type) => {
+  const handleVote = async (type) => {
     if (!isAuthenticated) return error("Debes iniciar sesión para votar.")
     if (type === 'up') {
-      toggleUpvoteProject(project.id, currentUser.id)
+      await toggleUpvoteProject(project.id, currentUser.id)
     } else if (type === 'down') {
-      if (toggleDownvoteProject) toggleDownvoteProject(project.id, currentUser.id)
+      if (toggleDownvoteProject) await toggleDownvoteProject(project.id, currentUser.id)
     }
   }
 
-  const handleComment = (e) => {
+  const handleComment = async (e) => {
     e.preventDefault()
     if (!commentText.trim() || !isAuthenticated) return
-    addCommentToProject(project.id, {
-      userId: currentUser.id,
-      userName: currentUser.name,
-      avatar: currentUser.avatar,
-      text: commentText.trim()
-    })
-    setCommentText('')
+    try {
+      const newCommentData = {
+        userId: currentUser.id,
+        userName: currentUser.name,
+        avatar: currentUser.avatarUrl || currentUser.avatar,
+        text: commentText.trim()
+      }
+      const newComment = await addCommentToProject(project.id, newCommentData)
+      
+      if (detailProject) {
+        setDetailProject(prev => ({
+          ...prev,
+          commentsCount: (prev.commentsCount || 0) + 1,
+          comments: [...(prev.comments || []), { 
+            ...newCommentData, 
+            id: newComment?.id || Date.now(), 
+            createdAt: new Date().toISOString(),
+            isHiddenByAuthor: false 
+          }]
+        }))
+      }
+      setCommentText('')
+    } catch (err) {
+      error('No se pudo publicar el comentario.')
+    }
   }
 
   const netScore = project.upvotes - project.downvotes
@@ -121,13 +218,37 @@ export default function ProjectDetail() {
       {/* Bento Box Grid */}
       <div className={styles.bento} style={{ gridTemplateAreas: bentoAreas }}>
 
-        {/* === A: Cover Image === */}
+        {/* === A: Cover / Carousel === */}
         <div className={`${styles.bentoItem} ${styles.cover}`} style={{ animationDelay: '0ms' }}>
-          <img
-            src={project.coverImage}
-            alt={`Portada del proyecto: ${project.title}`}
-            className={styles.coverImg}
-          />
+          {carouselImages.length > 0 ? (
+            <div className={styles.carouselContainer}>
+              <img
+                src={carouselImages[currentImageIdx]}
+                alt={`Imagen ${currentImageIdx + 1} del proyecto ${project.title}`}
+                className={styles.coverImg}
+              />
+              {carouselImages.length > 1 && (
+                <>
+                  <button className={`${styles.carouselBtn} ${styles.prevBtn}`} onClick={() => setCurrentImageIdx(prev => prev === 0 ? carouselImages.length - 1 : prev - 1)}>
+                    <IconChevronLeft />
+                  </button>
+                  <button className={`${styles.carouselBtn} ${styles.nextBtn}`} onClick={() => setCurrentImageIdx(prev => prev === carouselImages.length - 1 ? 0 : prev + 1)}>
+                    <IconChevronRight />
+                  </button>
+                  <div className={styles.carouselIndicators}>
+                    {carouselImages.map((_, idx) => (
+                      <div key={idx} className={`${styles.indicator} ${idx === currentImageIdx ? styles.active : ''}`} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+             <div className={styles.coverPlaceholder}>
+               <IconBox />
+               <span>Sin imágenes</span>
+             </div>
+          )}
         </div>
 
         {/* === B: Info Panel === */}
@@ -162,7 +283,7 @@ export default function ProjectDetail() {
               </div>
               <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Publicado</span>
-                <span className={styles.metaValue}>{project.createdAt}</span>
+                <span className={styles.metaValue}>{new Date(project.createdAt).toLocaleDateString()}</span>
               </div>
               <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Estado</span>
@@ -193,85 +314,7 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* === C: PDF iFrame === */}
-        <div className={`${styles.bentoItem} ${styles.pdf}`} style={{ animationDelay: '120ms' }}>
-          <div className={styles.iframeHeader}>
-            <div className={styles.iframeHeaderIcon} style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
-              <IconFilePdf />
-            </div>
-            <div>
-              <div className={styles.iframeTitle}>Paper / Documentación</div>
-              <div className={styles.iframeSubtitle}>PDF técnico del proyecto</div>
-            </div>
-          </div>
-          <div className={styles.iframeBody}>
-            {project.pdfLink ? (
-              project.pdfLink.startsWith('/storage/local') ? (
-                <div className={styles.iframePlaceholder} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--success)' }}>
-                  <div style={{ color: 'var(--success)', marginBottom: '8px' }}>
-                    <IconFilePdf />
-                  </div>
-                  <p className={styles.iframePlaceholderTitle}>Visualizando Archivo Local</p>
-                  <p style={{ color: 'var(--success)' }}>{project.pdfLink.split('/').pop()}</p>
-                  <button className="btn btn-secondary btn-sm" style={{ marginTop: '16px' }} onClick={() => info('Descargando archivo simulado...')}>Simular Descarga</button>
-                </div>
-              ) : (
-                <iframe
-                  src={project.pdfLink}
-                  title={`PDF del proyecto: ${project.title}`}
-                  allow="autoplay"
-                  loading="lazy"
-                />
-              )
-            ) : (
-              <div className={styles.iframePlaceholder}>
-                <IconFilePdf />
-                <p className={styles.iframePlaceholderTitle}>Paper no disponible</p>
-                <p>El autor no ha adjuntado un documento técnico todavía.</p>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* === D: CAD iFrame === */}
-        <div className={`${styles.bentoItem} ${styles.cad}`} style={{ animationDelay: '180ms' }}>
-          <div className={styles.iframeHeader}>
-            <div className={styles.iframeHeaderIcon} style={{ background: 'rgba(6,182,212,0.1)', color: 'var(--cyan-400)' }}>
-              <IconBox />
-            </div>
-            <div>
-              <div className={styles.iframeTitle}>Archivo CAD / 3D</div>
-              <div className={styles.iframeSubtitle}>Modelo de diseño técnico</div>
-            </div>
-          </div>
-          <div className={styles.iframeBody}>
-            {project.cadLink ? (
-              project.cadLink.startsWith('/storage/local') ? (
-                <div className={styles.iframePlaceholder} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--cyan-500)' }}>
-                  <div style={{ color: 'var(--cyan-400)', marginBottom: '8px' }}>
-                    <IconBox />
-                  </div>
-                  <p className={styles.iframePlaceholderTitle}>Visualizando CAD Local</p>
-                  <p style={{ color: 'var(--cyan-400)' }}>{project.cadLink.split('/').pop()}</p>
-                  <button className="btn btn-secondary btn-sm" style={{ marginTop: '16px' }} onClick={() => info('Abriendo visor CAD simulado...')}>Simular Visor 3D</button>
-                </div>
-              ) : (
-                <iframe
-                  src={project.cadLink}
-                  title={`Archivo CAD del proyecto: ${project.title}`}
-                  allow="autoplay"
-                  loading="lazy"
-                />
-              )
-            ) : (
-              <div className={styles.iframePlaceholder}>
-                <IconBox />
-                <p className={styles.iframePlaceholderTitle}>Archivo CAD no disponible</p>
-                <p>No se adjuntó un modelo de diseño para este proyecto.</p>
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* === E: Description === */}
         <div className={`${styles.bentoItem} ${styles.desc}`} style={{ animationDelay: '240ms' }}>
@@ -279,7 +322,30 @@ export default function ProjectDetail() {
           <p className={styles.descText}>{project.description}</p>
         </div>
 
-        {/* === F: Votes + Comments === */}
+        {/* === F: Other Files (Aesthetic Cards) === */}
+        {otherFiles.length > 0 && (
+          <div className={`${styles.bentoItem} ${styles.files}`} style={{ animationDelay: '270ms' }}>
+            <h3 className={styles.filesTitle}>Archivos Adjuntos</h3>
+            <div className={styles.filesGrid}>
+              {otherFiles.map((file, idx) => (
+                <a key={idx} href={file.downloadUrl} target="_blank" rel="noopener noreferrer" className={styles.fileCard}>
+                  <div className={styles.fileIconWrapper}>
+                    {file.type === 'PDF' ? <IconFilePdf /> : file.type === 'ZIP' ? <IconBox /> : <IconFilePdf />}
+                  </div>
+                  <div className={styles.fileInfo}>
+                    <div className={styles.fileName}>{file.originalName}</div>
+                    <div className={styles.fileSize}>{(file.size / 1024 / 1024).toFixed(2)} MB • {file.type}</div>
+                  </div>
+                  <div className={styles.fileDownloadIcon}>
+                    <IconDownload />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* === G: Votes + Comments === */}
         <div className={`${styles.bentoItem} ${styles.comments}`} style={{ animationDelay: '300ms' }}>
           {/* Votes */}
           <div className={styles.votesRow}>
@@ -350,7 +416,9 @@ export default function ProjectDetail() {
                     <div className={styles.commentContent}>
                       <div className={styles.commentHeader}>
                         <span className={styles.commentAuthor}>{c.userName}</span>
-                        <span className={styles.commentDate}>{c.createdAt}</span>
+                        <span className={styles.commentDate}>
+                          {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''}
+                        </span>
                       </div>
                       <p className={styles.commentText}>{c.text}</p>
                     </div>
@@ -377,11 +445,11 @@ export default function ProjectDetail() {
                 <button
                   id="comment-submit-btn"
                   type="submit"
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-primary"
                   disabled={!commentText.trim()}
                   aria-label="Enviar comentario"
                 >
-                  <IconSend />
+                  <IconSend /> Publicar
                 </button>
               </form>
             ) : (

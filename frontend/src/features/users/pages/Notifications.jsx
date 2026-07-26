@@ -66,13 +66,33 @@ export default function Notifications() {
                   className={`${styles.notificationItem} ${!notif.isRead ? styles.unread : ''}`}
                   onClick={() => {
                     if (!notif.isRead) handleMarkAsRead(notif.id)
+                    if (notif.targetUrl) navigate(notif.targetUrl)
                   }}
                   style={{ cursor: 'pointer' }}
                 >
-                  <img src={'https://api.dicebear.com/8.x/avataaars/svg'} alt="Usuario" className={styles.avatar} />
+                  <div className={styles.notifIconWrapper} style={{
+                    background: notif.message?.includes('Aprobado') ? 'rgba(34,197,94,0.1)' :
+                      notif.message?.includes('Denegado') || notif.message?.includes('denegado') ? 'rgba(239,68,68,0.1)' :
+                      notif.message?.includes('Cambios') || notif.message?.includes('cambios') ? 'rgba(245,158,11,0.1)' :
+                      'rgba(59,130,246,0.1)',
+                    color: notif.message?.includes('Aprobado') ? '#22c55e' :
+                      notif.message?.includes('Denegado') || notif.message?.includes('denegado') ? '#ef4444' :
+                      notif.message?.includes('Cambios') || notif.message?.includes('cambios') ? '#f59e0b' :
+                      '#3b82f6',
+                    width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18
+                  }}>
+                    {notif.message?.includes('Aprobado') ? '✅' :
+                      notif.message?.includes('Denegado') || notif.message?.includes('denegado') ? '❌' :
+                      notif.message?.includes('Cambios') || notif.message?.includes('cambios') ? '⚠️' : '🔔'}
+                  </div>
                   <div className={styles.notifBody}>
                     <p className={styles.notifText}>
-                      {notif.content}
+                      {/* message format: "[Título] cuerpo del mensaje" */}
+                      {notif.message ? (() => {
+                        const match = notif.message.match(/^\[([^\]]+)\]\s*(.+)$/s)
+                        if (match) return <><strong style={{color:'var(--text-primary)'}}>{match[1]}</strong><br />{match[2]}</>
+                        return notif.message
+                      })() : 'Sin contenido'}
                     </p>
                     <span className={styles.notifTime}>{new Date(notif.createdAt).toLocaleDateString()}</span>
                   </div>

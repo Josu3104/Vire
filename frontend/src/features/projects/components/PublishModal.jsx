@@ -24,6 +24,95 @@ const IconCheck = () => (
   </svg>
 )
 
+function CoverUploader({ file, onFileChange, isUploading, setUploading }) {
+  const [uploadProgress, setUploadProgress] = useState(null)
+  const [uploadPercentage, setUploadPercentage] = useState(0)
+
+  const handleFileChange = async (e) => {
+    const selectedFile = e.target.files[0]
+    if (!selectedFile) return
+
+    setUploading(true)
+    try {
+      const { requestPresignedUrl, directS3Upload } = await import('@/features/projects/api/projects.api')
+      
+      setUploadProgress(`Subiendo portada...`)
+      
+      const res = await requestPresignedUrl(selectedFile.name, selectedFile.type || 'image/jpeg', `projects/covers`)
+      const { uploadUrl, fileKey } = res
+
+      await directS3Upload(uploadUrl, selectedFile, (progress) => {
+        setUploadPercentage(progress);
+      })
+
+      onFileChange({
+        filename: selectedFile.name,
+        originalName: selectedFile.name,
+        mimeType: selectedFile.type || 'image/jpeg',
+        size: selectedFile.size,
+        storageKey: fileKey,
+        type: 'COVER'
+      })
+    } catch (error) {
+      console.error('Error subiendo portada', error)
+      alert('Error subiendo la portada.')
+    } finally {
+      setUploading(false)
+      setUploadProgress(null)
+      setUploadPercentage(0)
+      e.target.value = ''
+    }
+  }
+
+  return (
+    <div className="form-group">
+      <label className="form-label">Miniatura / Portada Obligatoria <span style={{color: 'var(--danger)'}}>*</span></label>
+      <div className={`${styles.uploaderContainer} ${file ? styles.hasCover : ''}`}>
+        {isUploading && (
+           <div style={{ width: '100%', padding: '0 1rem', marginBottom: '1rem' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <span className={styles.uploadText}>{uploadProgress}</span>
+               <span className={styles.uploadText}>{uploadPercentage}%</span>
+             </div>
+             <div className={styles.progressContainer}>
+               <div className={styles.progressBar} style={{ width: `${uploadPercentage}%` }} />
+             </div>
+           </div>
+        )}
+        
+        {file && !isUploading && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+              <IconCheck />
+              <span style={{ fontSize: '0.85rem', color: 'var(--text)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {file.originalName}
+              </span>
+            </div>
+            <button type="button" onClick={() => onFileChange(null)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex' }}>
+              <IconX />
+            </button>
+          </div>
+        )}
+
+        {!file && !isUploading && (
+          <>
+            <IconUpload />
+            <span className={styles.uploadText}>Sube una imagen atractiva</span>
+            <span className={styles.uploadSubtext}>Formato JPG, PNG o WEBP</span>
+            <input 
+              type="file" 
+              accept="image/*"
+              className={styles.fileInput} 
+              onChange={handleFileChange}
+              disabled={isUploading}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function MultiFileUploader({ files, onFilesChange, isUploading, setUploading }) {
   const [uploadProgress, setUploadProgress] = useState(null)
   const [uploadPercentage, setUploadPercentage] = useState(0)
@@ -151,8 +240,6 @@ export default function PublishModal({ isOpen, onClose }) {
   const { success, error } = useToast()
   const [activeTab, setActiveTab] = useState('project') // 'project' | 'paper'
   const [uploadingFields, setUploadingFields] = useState({})
-  
-  const isAnyUploading = Object.values(uploadingFields).some(Boolean)
 
   // Form State
   const [formData, setFormData] = useState({
@@ -160,12 +247,27 @@ export default function PublishModal({ isOpen, onClose }) {
     description: '',
     tags: [],
     advisors: [],
+    cover: null,
     files: [], // Unified files array
     // Paper specific
     coauthors: [],
     abstract: '',
     doi: ''
   })
+  
+  const isAnyUploading = Object.values(uploadingFields).some(Boolean)
+
+  const handleTabSwitch = (tab) => {
+    setActiveTab(tab)
+    // Reset mode-specific fields to avoid bleeding
+    setFormData(prev => ({
+      ...prev,
+      description: '',
+      abstract: '',
+      doi: '',
+      advisors: tab === 'paper' ? [] : prev.advisors,
+    }))
+  }
 
   if (!isOpen) return null
 
@@ -175,6 +277,13 @@ export default function PublishModal({ isOpen, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!formData.cover) {
+      error('La miniatura de portada es obligatoria.')
+      return
+    }
+
+    const finalFiles = [formData.cover, ...formData.files]
 
     try {
       if (activeTab === 'project') {
@@ -187,11 +296,10 @@ export default function PublishModal({ isOpen, onClose }) {
           university: currentUser.university || 'Independiente',
           branch: 'Ingeniería',
           advisors: formData.advisors,
-          files: formData.files
+          files: finalFiles
         })
       } else {
-        // For paper, ensure there's at least one PDF if files are uploaded
-        const paperFiles = formData.files;
+        const paperFiles = finalFiles;
         await addProject({
           type: 'paper',
           title: formData.title,
@@ -226,20 +334,27 @@ export default function PublishModal({ isOpen, onClose }) {
           <button
             type="button"
             className={`${styles.tab} ${activeTab === 'project' ? styles.active : ''}`}
-            onClick={() => setActiveTab('project')}
+            onClick={() => handleTabSwitch('project')}
           >
             Proyecto Técnico
           </button>
           <button
             type="button"
             className={`${styles.tab} ${activeTab === 'paper' ? styles.active : ''}`}
-            onClick={() => setActiveTab('paper')}
+            onClick={() => handleTabSwitch('paper')}
           >
             Paper de Investigación
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
+          <CoverUploader 
+            file={formData.cover}
+            onFileChange={(file) => setFormData(p => ({ ...p, cover: file }))}
+            isUploading={uploadingFields.cover}
+            setUploading={(val) => setUploadingFields(p => ({...p, cover: val}))}
+          />
+
           {activeTab === 'project' ? (
             <>
               <div className="form-group">
