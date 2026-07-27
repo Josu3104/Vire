@@ -16,6 +16,11 @@ export class ScannerService {
       const host = this.configService.get<string>('clamav.host');
       const port = this.configService.get<number>('clamav.port');
 
+      if (!host) {
+        this.logger.warn('ClamAV host not configured, skipping initialization.');
+        return;
+      }
+
       this.clamscan = await new NodeClam().init({
         clamdscan: {
           host,

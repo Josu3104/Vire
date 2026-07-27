@@ -366,12 +366,6 @@ export default function Auth() {
               </button>
             </form>
 
-            {/* Demo hint */}
-            <div style={{ marginTop: 16 }} className={styles.divider}>Cuentas de demo</div>
-            <div className={styles.demoHint}>
-              <strong>Regular:</strong> <code>diego.rivera@unitec.edu.hn</code> / <code>password123</code><br />
-              <strong>Admin:</strong> <code>admin@ieee.hn</code> / <code>admin123</code>
-            </div>
 
             {/* Allied Orgs */}
             <div style={{ marginTop: 24, textAlign: 'center' }}>

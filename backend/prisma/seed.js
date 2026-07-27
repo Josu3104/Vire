@@ -28,6 +28,7 @@ async function main() {
           city: 'Tegucigalpa',
           academicStatus: 'Estudiante Universitario',
           availabilityState: 'available',
+          onboardingComplete: true,
         }
       }
     },
@@ -50,6 +51,7 @@ async function main() {
           city: 'Honduras',
           academicStatus: 'Doctor/Investigador',
           availabilityState: 'unavailable',
+          onboardingComplete: true,
         }
       }
     },
