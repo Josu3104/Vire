@@ -76,7 +76,7 @@ export default function OnboardingWizard() {
       if (!academicStatus) return error('Debes seleccionar tu estado académico para continuar.')
       if (!institution) return error('Debes seleccionar tu institución para continuar.')
     }
-    if (step < 2) setStep((s) => s + 1)
+    if (step < STEPS.length - 1) setStep((s) => s + 1)
   }
 
   const handleCancel = () => {
@@ -325,7 +325,7 @@ export default function OnboardingWizard() {
                 ← Atrás
               </button>
             )}
-            {step < 2 ? (
+            {step < STEPS.length - 1 ? (
               <button type="button" className={styles.nextBtn} onClick={handleNext}>
                 Siguiente →
               </button>
