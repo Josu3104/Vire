@@ -34,4 +34,15 @@ export class AuthController {
   async logout() {
     return { message: 'Logged out successfully' };
   }
+
+  @Get('check-email')
+  @ApiOperation({ summary: 'Check if email is available' })
+  @ApiResponse({ status: 200, description: 'Returns availability status' })
+  async checkEmail(@Request() req: any) {
+    const email = req.query.email;
+    if (!email) {
+      return { available: false };
+    }
+    return this.authService.checkEmailAvailability(email);
+  }
 }

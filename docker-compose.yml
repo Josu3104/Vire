@@ -4,6 +4,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # In Railway, set VITE_API_URL to your backend Railway public URL
+        # e.g. https://vire-backend.up.railway.app
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: vire-frontend
     restart: unless-stopped
     ports:
@@ -18,24 +22,27 @@ services:
     container_name: vire-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://vire:${POSTGRES_PASSWORD:-vire_dev_2026}@postgres:5432/vire_db
-      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_dev_key_2026}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://vire:${POSTGRES_PASSWORD:-vire_prod_2026}@postgres:5432/vire_db}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
       JWT_EXPIRATION: 7d
-      CLAMAV_HOST: clamav
-      CLAMAV_PORT: 3310
+      # ClamAV disabled for POC (uncomment and add clamav service for production)
+      CLAMAV_HOST: ""
+      CLAMAV_PORT: ""
+      # MinIO internal URL (container-to-container)
       S3_ENDPOINT: http://minio:9000
+      # Public URL used to generate download links (set to your Railway frontend URL)
+      # e.g. https://vire-frontend.up.railway.app
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost}
       S3_BUCKET: vire-storage
       S3_REGION: us-east-1
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-admin}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:-admin1234}
-      CORS_ORIGIN: http://localhost
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-change_me_in_production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
       BREVO_API_KEY: ${BREVO_API_KEY:-""}
     ports:
       - "3000:3000"
     depends_on:
       postgres:
-        condition: service_healthy
-      clamav:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -47,7 +54,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: vire
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vire_dev_2026}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vire_prod_2026}
       POSTGRES_DB: vire_db
     ports:
       - "5433:5432"
@@ -66,7 +73,8 @@ services:
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-admin}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-admin1234}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-change_me_in_production}
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     ports:
       - "8333:9000"
       - "9001:9001"
@@ -86,29 +94,29 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc config host add myminio http://minio:9000 ${S3_ACCESS_KEY:-admin} ${S3_SECRET_KEY:-admin1234};
+      /usr/bin/mc alias set myminio http://minio:9000 ${S3_ACCESS_KEY:-admin} ${S3_SECRET_KEY:-change_me_in_production};
       /usr/bin/mc mb myminio/vire-storage --ignore-existing;
       /usr/bin/mc anonymous set public myminio/vire-storage;
       exit 0;
       "
 
-  # ─── ClamAV Antivirus Daemon ──────────────────
-  clamav:
-    image: clamav/clamav:stable
-    container_name: vire-clamav
-    restart: unless-stopped
-    ports:
-      - "3310:3310"
-    volumes:
-      - clamav_data:/var/lib/clamav
-    healthcheck:
-      test: ["CMD-SHELL", "echo PING | nc localhost 3310 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s   # ClamAV tarda en descargar firmas
+  # ─── ClamAV (disabled for POC - uncomment for full production) ──
+  # clamav:
+  #   image: clamav/clamav:stable
+  #   container_name: vire-clamav
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3310:3310"
+  #   volumes:
+  #     - clamav_data:/var/lib/clamav
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "echo PING | nc localhost 3310 || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 120s
 
 volumes:
   postgres_data:
   minio_data:
-  clamav_data:
+  # clamav_data:

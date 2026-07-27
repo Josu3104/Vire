@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import { getInbox, getHistory, startChat, markChatAsRead } from '@/features/chat/api/chat.api'
-import { searchUsers, getTopEngineers } from '@/features/users/api/users.api'
+import { searchUsers } from '@/features/users/api/users.api'
 import { useAuth } from '@/features/auth/context/AuthContext'
 import { useGlobalStats } from '@/core/context/GlobalStatsContext'
 import { useNavigate } from 'react-router-dom'
@@ -42,9 +42,6 @@ export default function Messages() {
         }
       }
     }).catch(console.error)
-
-    // Fetch Top Engineers for suggestions
-    getTopEngineers().then(setTopUsers).catch(console.error)
 
     // 2. Connect socket
     const token = localStorage.getItem('access_token')
@@ -233,22 +230,6 @@ export default function Messages() {
                 <button className="btn btn-primary btn-sm" onClick={() => setIsModalOpen(true)}>
                   Iniciar Chat
                 </button>
-                {topUsers.length > 0 && (
-                  <div style={{ marginTop: '24px', textAlign: 'left' }}>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase', fontWeight: 600 }}>Sugerencias top</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {topUsers.filter(u => u.id !== currentUser.id).map(u => (
-                        <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => handleStartNewChat(u.id)}>
-                          <img src={u.avatarUrl || 'https://api.dicebear.com/8.x/avataaars/svg'} alt={u.name} style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>{u.name}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.profile?.university || 'Ingeniero'}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             ) : inbox.map(chat => {
               const partner = getChatPartner(chat, currentUser?.id)

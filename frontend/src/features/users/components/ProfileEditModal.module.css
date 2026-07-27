@@ -89,6 +89,8 @@
   font-family: var(--font-sans);
   font-size: 0.95rem;
   transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .input:focus, .textarea:focus, .select:focus {

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/context/AuthContext'
 import { useTheme } from '@/core/theme/ThemeContext'
+import { checkEmail } from '@/features/auth/api/auth.api'
 import styles from './Auth.module.css'
 
 const IconInfo = () => (
@@ -11,12 +12,72 @@ const IconInfo = () => (
   </svg>
 )
 
+const IconEye = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+)
+
+const IconEyeOff = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+)
+
+const getPasswordStrength = (pass) => {
+  if (!pass) return { score: 0, text: '', color: 'transparent', tips: [] };
+  
+  let score = 0;
+  const tips = [];
+  
+  if (pass.length < 6) {
+    tips.push('Mínimo 6 caracteres');
+  } else {
+    score += 1;
+    if (pass.length >= 8) score += 1;
+  }
+  
+  const hasNum = /\d/.test(pass);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(pass);
+  const hasUpper = /[A-Z]/.test(pass);
+  const hasLower = /[a-z]/.test(pass);
+  
+  if (score > 0) {
+    let varieties = 0;
+    if (hasNum) varieties++;
+    else tips.push('Incluye números');
+    
+    if (hasSpecial) varieties++;
+    else tips.push('Incluye caracteres especiales (!@#$)');
+    
+    if (hasUpper && hasLower) varieties++;
+    else tips.push('Usa mayúsculas y minúsculas');
+    
+    if (varieties >= 1) score = Math.max(score, 2);
+    if (varieties >= 3 && pass.length >= 8) score = 3;
+  }
+
+  if (score === 1) return { score, color: '#ef4444', text: 'Débil', tips };
+  if (score === 2) return { score, color: '#eab308', text: 'Media', tips };
+  if (score >= 3) return { score, color: '#22c55e', text: 'Fuerte', tips };
+  
+  return { score: 0, color: 'transparent', text: '', tips };
+}
+
 export default function Auth() {
   const { login, register, isLoading, authError, clearError, isAuthenticated } = useAuth()
   const { theme } = useTheme()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('login')
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', ieeeId: '', cimeqhId: '' })
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', ieeeId: '', cimeqhId: '' })
+  const [localError, setLocalError] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [emailStatus, setEmailStatus] = useState(null)
+  
+  const passStrength = getPasswordStrength(formData.password)
+  
   // Track if we just registered to suppress the useEffect redirect
   const justRegisteredRef = useRef(false)
 
@@ -27,7 +88,22 @@ export default function Auth() {
 
   const handleChange = (e) => {
     clearError()
+    setLocalError(null)
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const handleEmailBlur = async () => {
+    if (activeTab !== 'register' || !formData.email) return
+    setEmailStatus('checking')
+    try {
+      const data = await checkEmail(formData.email)
+      setEmailStatus(data.available ? 'available' : 'taken')
+      if (!data.available) {
+        setLocalError('El correo electrónico ya está en uso')
+      }
+    } catch (e) {
+      setEmailStatus(null)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -35,29 +111,32 @@ export default function Auth() {
     let result
     if (activeTab === 'login') {
       result = await login(formData.email, formData.password)
-    } else {
-      justRegisteredRef.current = true
-      result = await register({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        ieeeId: formData.ieeeId,
-        cimeqhId: formData.cimeqhId,
-      })
-    }
-    if (result.success) {
-      if (activeTab === 'register') {
-        navigate('/onboarding')
-      } else {
+      if (result.success) {
         navigate('/explorar')
       }
+    } else {
+      if (emailStatus === 'taken') {
+        setLocalError('El correo electrónico ya está en uso')
+        return
+      }
+      if (formData.password.length < 6) {
+        setLocalError('La contraseña debe tener al menos 6 caracteres')
+        return
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setLocalError('Las contraseñas no coinciden')
+        return
+      }
+      navigate('/onboarding', { state: { registrationData: formData } })
     }
   }
 
   const switchTab = (tab) => {
     setActiveTab(tab)
     clearError()
-    setFormData({ name: '', email: '', password: '', ieeeId: '', cimeqhId: '' })
+    setLocalError(null)
+    setEmailStatus(null)
+    setFormData({ name: '', email: '', password: '', confirmPassword: '', ieeeId: '', cimeqhId: '' })
   }
 
   return (
@@ -89,21 +168,6 @@ export default function Auth() {
             <p className={styles.tagline}>
               Descubre proyectos innovadores, accede a papers técnicos y conecta con la comunidad de ingeniería de Honduras en un hub totalmente soberano.
             </p>
-
-            <div className={styles.stats}>
-              <div className={styles.stat}>
-                <div className={styles.statValue}><span>8</span>+</div>
-                <div className={styles.statLabel}>Proyectos</div>
-              </div>
-              <div className={styles.stat}>
-                <div className={styles.statValue}><span>4</span></div>
-                <div className={styles.statLabel}>Universidades</div>
-              </div>
-              <div className={styles.stat}>
-                <div className={styles.statValue}><span>5</span></div>
-                <div className={styles.statLabel}>Ingenieros</div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -170,6 +234,7 @@ export default function Auth() {
                   placeholder="usuario@universidad.edu.hn"
                   value={formData.email}
                   onChange={handleChange}
+                  onBlur={handleEmailBlur}
                   required
                   autoComplete="email"
                 />
@@ -177,18 +242,68 @@ export default function Auth() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="auth-password">Contraseña</label>
-                <input
-                  id="auth-password"
-                  name="password"
-                  type="password"
-                  className="form-input"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  autoComplete={activeTab === 'login' ? 'current-password' : 'new-password'}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="auth-password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    className="form-input"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    autoComplete={activeTab === 'login' ? 'current-password' : 'new-password'}
+                    style={{ paddingRight: '40px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, display: 'flex'
+                    }}
+                  >
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
+                </div>
+                {activeTab === 'register' && formData.password.length > 0 && (
+                  <div style={{ marginTop: '8px', fontSize: '0.85rem', width: '100%' }}>
+                    <div style={{ display: 'flex', gap: '4px', height: '4px', marginBottom: '6px' }}>
+                      <div style={{ flex: 1, backgroundColor: passStrength.score >= 1 ? passStrength.color : 'var(--border-subtle)', borderRadius: '2px', transition: 'all 0.3s' }} />
+                      <div style={{ flex: 1, backgroundColor: passStrength.score >= 2 ? passStrength.color : 'var(--border-subtle)', borderRadius: '2px', transition: 'all 0.3s' }} />
+                      <div style={{ flex: 1, backgroundColor: passStrength.score >= 3 ? passStrength.color : 'var(--border-subtle)', borderRadius: '2px', transition: 'all 0.3s' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: passStrength.color, fontWeight: 500, fontSize: '0.85rem' }}>
+                      <span>{passStrength.text}</span>
+                    </div>
+                    {passStrength.tips.length > 0 && (
+                      <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                        {passStrength.tips.map((t, i) => <li key={i}>{t}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {activeTab === 'register' && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="auth-confirm-password">Confirmar Contraseña</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="auth-confirm-password"
+                      name="confirmPassword"
+                      type={showPassword ? 'text' : 'password'}
+                      className="form-input"
+                      placeholder="••••••••"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                      autoComplete="new-password"
+                      style={{ paddingRight: '40px' }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {activeTab === 'register' && (
                 <>
@@ -231,8 +346,8 @@ export default function Auth() {
                 </>
               )}
 
-              {authError && (
-                <div className={styles.errorBox} role="alert">{authError}</div>
+              {(authError || localError) && (
+                <div className={styles.errorBox} role="alert">{authError || localError}</div>
               )}
 
               <button
@@ -246,7 +361,7 @@ export default function Auth() {
                 ) : activeTab === 'login' ? (
                   'Entrar a Vire'
                 ) : (
-                  'Crear mi cuenta'
+                  'Continuar'
                 )}
               </button>
             </form>

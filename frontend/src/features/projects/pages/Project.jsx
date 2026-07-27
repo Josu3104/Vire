@@ -59,6 +59,12 @@ const IconBox = () => (
     <polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
   </svg>
 )
+const IconLink = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </svg>
+)
 const IconSend = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
@@ -165,9 +171,12 @@ export default function ProjectDetail() {
     '"comments comments"'
   ].filter(Boolean).join(' ')
 
+  const isPreview = project.status && project.status !== 'publico';
+
   const userVote = currentUser && project.upvotedBy?.includes(currentUser.id) ? 'up' : currentUser && project.downvotedBy?.includes(currentUser.id) ? 'down' : null
 
   const handleVote = async (type) => {
+    if (isPreview) return error("La votación está deshabilitada en modo vista previa.")
     if (!isAuthenticated) return error("Debes iniciar sesión para votar.")
     if (type === 'up') {
       await toggleUpvoteProject(project.id, currentUser.id)
@@ -178,6 +187,7 @@ export default function ProjectDetail() {
 
   const handleComment = async (e) => {
     e.preventDefault()
+    if (isPreview) return error("Los comentarios están deshabilitados en modo vista previa.")
     if (!commentText.trim() || !isAuthenticated) return
     try {
       const newCommentData = {
@@ -208,11 +218,21 @@ export default function ProjectDetail() {
 
   const netScore = project.upvotes - project.downvotes
 
+  const formattedDate = new Date(project.createdAt || Date.now()).toLocaleDateString('es-ES', {
+    day: 'numeric', month: 'short', year: 'numeric'
+  })
+
   return (
     <div className={styles.page}>
+      {isPreview && (
+        <div style={{ background: 'var(--accent-500)', color: 'white', padding: '10px', textAlign: 'center', fontWeight: 'bold', borderRadius: '8px', marginBottom: '16px' }}>
+          Vista Previa de Moderación - Opciones de interacción deshabilitadas
+        </div>
+      )}
+
       {/* Back button */}
-      <button className={styles.backBtn} onClick={() => navigate('/explorar')} aria-label="Volver al feed">
-        <IconArrow /> Explorar
+      <button className={styles.backBtn} onClick={() => navigate(-1)} aria-label="Volver">
+        <IconArrow /> Volver
       </button>
 
       {/* Bento Box Grid */}
@@ -257,7 +277,14 @@ export default function ProjectDetail() {
             <h1 className={styles.projectTitle}>{project.title}</h1>
 
             {/* Author card */}
-            <div className={styles.authorCard}>
+            <div 
+              className={styles.authorCard} 
+              onClick={() => {
+                if (author?.id) navigate(`/usuario/${author.id}`)
+              }}
+              style={{ cursor: 'pointer' }}
+              title={`Ver perfil de ${isTeam ? 'los autores' : project.author}`}
+            >
               <div className={styles.authorAvatar}>
                 {author?.avatar && <img src={author.avatar} alt={author.name} />}
               </div>
@@ -283,19 +310,7 @@ export default function ProjectDetail() {
               </div>
               <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Publicado</span>
-                <span className={styles.metaValue}>{new Date(project.createdAt).toLocaleDateString()}</span>
-              </div>
-              <div className={styles.metaItem}>
-                <span className={styles.metaLabel}>Estado</span>
-                <span
-                  className={`status-badge ${project.status === 'Público' ? 'status-badge--publico' :
-                      project.status === 'Pendiente' ? 'status-badge--pendiente' :
-                        'status-badge--cambios'
-                    }`}
-                  style={{ fontSize: 11, padding: '2px 8px' }}
-                >
-                  {project.status}
-                </span>
+                <span className={styles.metaValue}>{formattedDate}</span>
               </div>
               <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Votos netos</span>
@@ -328,7 +343,7 @@ export default function ProjectDetail() {
             <h3 className={styles.filesTitle}>Archivos Adjuntos</h3>
             <div className={styles.filesGrid}>
               {otherFiles.map((file, idx) => (
-                <a key={idx} href={file.downloadUrl} target="_blank" rel="noopener noreferrer" className={styles.fileCard}>
+                <a key={idx} href={file.downloadUrl} download={file.originalName} className={styles.fileCard}>
                   <div className={styles.fileIconWrapper}>
                     {file.type === 'PDF' ? <IconFilePdf /> : file.type === 'ZIP' ? <IconBox /> : <IconFilePdf />}
                   </div>
@@ -338,6 +353,25 @@ export default function ProjectDetail() {
                   </div>
                   <div className={styles.fileDownloadIcon}>
                     <IconDownload />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* === F2: Attached Links === */}
+        {project.attachedLinks && project.attachedLinks.length > 0 && (
+          <div className={`${styles.bentoItem} ${styles.files}`} style={{ animationDelay: '280ms' }}>
+            <h3 className={styles.filesTitle}>Enlaces Adjuntos</h3>
+            <div className={styles.filesGrid}>
+              {project.attachedLinks.map((link, idx) => (
+                <a key={idx} href={link} target="_blank" rel="noopener noreferrer" className={styles.fileCard}>
+                  <div className={styles.fileIconWrapper}>
+                    <IconLink />
+                  </div>
+                  <div className={styles.fileInfo}>
+                    <div className={styles.fileName}>{link}</div>
                   </div>
                 </a>
               ))}
@@ -410,12 +444,12 @@ export default function ProjectDetail() {
                 )
                 return (
                   <div key={c.id} className={styles.comment}>
-                    <div className={styles.commentAvatar}>
+                    <div className={styles.commentAvatar} onClick={() => navigate(`/perfil/${c.userId}`)} style={{ cursor: 'pointer' }}>
                       {c.avatar && <img src={c.avatar} alt={c.userName} loading="lazy" />}
                     </div>
                     <div className={styles.commentContent}>
                       <div className={styles.commentHeader}>
-                        <span className={styles.commentAuthor}>{c.userName}</span>
+                        <span className={styles.commentAuthor} onClick={() => navigate(`/perfil/${c.userId}`)} style={{ cursor: 'pointer' }}>{c.userName}</span>
                         <span className={styles.commentDate}>
                           {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''}
                         </span>

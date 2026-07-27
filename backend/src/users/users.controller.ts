@@ -27,11 +27,13 @@ export class UsersController {
     return this.usersService.updateProfile(req.user.id, body);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('top')
-  @ApiOperation({ summary: 'Get top engineers (based on badges)' })
+  @ApiOperation({ summary: 'Get top engineers (based on upvotes)' })
   @ApiResponse({ status: 200, description: 'Top users returned' })
-  async getTopEngineers() {
-    return this.usersService.getTopEngineers();
+  async getTopEngineers(@Request() req: any) {
+    return this.usersService.getTopEngineers(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -53,13 +55,33 @@ export class UsersController {
     return this.usersService.getPendingUsers();
   }
 
+
+
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post(':id/approve')
   @ApiOperation({ summary: 'Approve user verification (Admin)' })
   @ApiResponse({ status: 200, description: 'User approved' })
-  async approveUser(@Param('id') id: string) {
-    return this.usersService.approveUser(+id);
+  async approveUser(@Param('id') id: string, @Request() req: any) {
+    return this.usersService.approveUser(+id, req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post(':id/reject')
+  @ApiOperation({ summary: 'Reject user verification (Admin)' })
+  @ApiResponse({ status: 200, description: 'User rejected' })
+  async rejectUser(@Param('id') id: string, @Body('reason') reason: string, @Request() req: any) {
+    return this.usersService.rejectUser(+id, reason, req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('request-membership-validation')
+  @ApiOperation({ summary: 'Request membership validation' })
+  @ApiResponse({ status: 200, description: 'Validation requested' })
+  async requestMembershipValidation(@Request() req: any) {
+    return this.usersService.requestMembershipValidation(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)

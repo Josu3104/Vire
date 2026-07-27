@@ -26,6 +26,7 @@ enum ProjectStatus {
   pendiente
   requiere_cambios
   denegado
+  privado
 }
 
 enum BadgeRequestStatus {
@@ -61,8 +62,10 @@ model User {
   passwordHash        String    @map("password_hash") @db.VarChar
   role                UserRole  @default(comun)
   affiliation         String?   @db.VarChar
+  ieeeId              String?   @map("ieee_id") @db.VarChar
+  cimeqhId            String?   @map("cimeqh_id") @db.VarChar
   pendingVerification Boolean   @default(false) @map("pending_verification")
-  avatarUrl           String?   @map("avatar_url") @db.VarChar
+  avatarUrl           String?   @map("avatar_url") @db.Text
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamp
   isOnline            Boolean   @default(false) @map("is_online")
@@ -84,6 +87,7 @@ model User {
   adminReviewedProjects Project[]       @relation("ProjectAdminReviewer")
   adminReviewedBadges   BadgeRequest[]  @relation("BadgeAdminReviewer")
 
+
   @@map("users")
 }
 
@@ -99,8 +103,8 @@ model Profile {
   academicStatus     String?           @map("academic_status") @db.VarChar
   availabilityState  AvailabilityState @default(unavailable) @map("availability_state")
   isContactPublic    Boolean           @default(true) @map("is_contact_public")
-  bannerUrl          String?           @map("banner_url") @db.VarChar
-  cvUrl              String?           @map("cv_url") @db.VarChar
+  bannerUrl          String?           @map("banner_url") @db.Text
+  cvUrl              String?           @map("cv_url") @db.Text
   onboardingComplete Boolean           @default(false) @map("onboarding_complete")
   updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamp
 
@@ -130,6 +134,7 @@ model Project {
   upvotes         Int               @default(0)
   downvotes       Int               @default(0)
   advisors        Json?             @default("[]")
+  attachedLinks   Json?             @default("[]") @map("attached_links")
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp
   updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamp
 

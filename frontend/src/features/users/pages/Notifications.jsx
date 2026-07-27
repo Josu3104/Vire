@@ -13,11 +13,10 @@ export default function Notifications() {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [filter, setFilter] = useState('all')
-  const [topUsers, setTopUsers] = useState([])
+  const [selectedNotif, setSelectedNotif] = useState(null)
 
   useEffect(() => {
     getNotifications().then(res => setNotifications(res)).catch(console.error)
-    getTopEngineers().then(setTopUsers).catch(console.error)
   }, [])
 
   const handleMarkAsRead = async (id) => {
@@ -66,7 +65,7 @@ export default function Notifications() {
                   className={`${styles.notificationItem} ${!notif.isRead ? styles.unread : ''}`}
                   onClick={() => {
                     if (!notif.isRead) handleMarkAsRead(notif.id)
-                    if (notif.targetUrl) navigate(notif.targetUrl)
+                    setSelectedNotif(notif)
                   }}
                   style={{ cursor: 'pointer' }}
                 >
@@ -103,25 +102,37 @@ export default function Notifications() {
           </div>
         </main>
 
-        {/* Right Column */}
-        <aside className={styles.rightSidebar}>
-          <div className={styles.card}>
-            <h3 className={styles.cardTitle}>Sugerencias para ti</h3>
-            <p className={styles.cardSubtitle}>Compañeros destacados</p>
-            
-            {topUsers.filter(u => u.id !== currentUser?.id).map(u => (
-              <div key={u.id} className={styles.suggestionItem}>
-                <img src={u.avatarUrl || 'https://api.dicebear.com/8.x/avataaars/svg'} alt={u.name} className={styles.suggestionAvatarImg} />
-                <div className={styles.suggestionInfo}>
-                  <div className={styles.suggestionName}>{u.name}</div>
-                  <div className={styles.suggestionDesc}>{u.profile?.university || 'Ingeniero'}</div>
-                  <button className={styles.followBtn} onClick={() => navigate(`/usuario/${u.id}`)}>Ver Perfil</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
+
       </div>
+
+      {/* Notification Modal */}
+      {selectedNotif && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedNotif(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Detalles de la Notificación</h3>
+              <button className={styles.closeBtn} onClick={() => setSelectedNotif(null)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ whiteSpace: 'pre-wrap', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                {selectedNotif.message ? (() => {
+                  const match = selectedNotif.message.match(/^\[([^\]]+)\]\s*(.+)$/s)
+                  if (match) return <><strong style={{ fontSize: '1.1rem' }}>{match[1]}</strong><br /><br />{match[2]}</>
+                  return selectedNotif.message
+                })() : 'Sin contenido'}
+              </p>
+            </div>
+            <div className={styles.modalFooter}>
+              {selectedNotif.targetUrl && (
+                <button className="btn btn-primary" onClick={() => navigate(selectedNotif.targetUrl)}>
+                  Ir al enlace
+                </button>
+              )}
+              <button className="btn btn-secondary" onClick={() => setSelectedNotif(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

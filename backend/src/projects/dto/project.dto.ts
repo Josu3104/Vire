@@ -69,6 +69,11 @@ export class CreateProjectDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
+  attachedLinks?: any[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsArray()
   files?: Array<{
     filename: string;
     originalName: string;

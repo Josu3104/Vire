@@ -57,9 +57,7 @@ function AppShell() {
         <Route path="/admin" element={
           <ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>
         } />
-        <Route path="/onboarding" element={
-          <ProtectedRoute><OnboardingWizard /></ProtectedRoute>
-        } />
+        <Route path="/onboarding" element={<OnboardingWizard />} />
         <Route path="/notifications" element={
           <ProtectedRoute><Notifications /></ProtectedRoute>
         } />

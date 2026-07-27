@@ -16,7 +16,7 @@ export const requestPresignedUrl = async (fileName, mimeType, folder) => {
   return apiClient.post('/projects/presign', { fileName, mimeType, folder });
 };
 
-export const directS3Upload = (url, file, onProgress) => {
+export const directS3Upload = (url, file, onProgress, mimeType) => {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     
@@ -44,7 +44,7 @@ export const directS3Upload = (url, file, onProgress) => {
     });
 
     xhr.open('PUT', url, true);
-    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.setRequestHeader('Content-Type', mimeType || file.type || 'application/octet-stream');
     xhr.send(file);
   });
 };
@@ -63,6 +63,10 @@ export const commentProject = async (id, text) => {
 
 export const updateProjectStatus = async (id, status, rejectionReason = null) => {
   return apiClient.patch(`/projects/${id}/status`, { status, rejectionReason });
+};
+
+export const updateProjectVisibility = async (id, status) => {
+  return apiClient.patch(`/projects/${id}/visibility`, { status });
 };
 
 export const deleteProject = async (id) => {

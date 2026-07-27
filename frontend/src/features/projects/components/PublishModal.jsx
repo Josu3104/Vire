@@ -38,12 +38,13 @@ function CoverUploader({ file, onFileChange, isUploading, setUploading }) {
       
       setUploadProgress(`Subiendo portada...`)
       
-      const res = await requestPresignedUrl(selectedFile.name, selectedFile.type || 'image/jpeg', `projects/covers`)
+      const mimeType = selectedFile.type || 'image/jpeg'
+      const res = await requestPresignedUrl(selectedFile.name, mimeType, `projects/covers`)
       const { uploadUrl, fileKey } = res
 
       await directS3Upload(uploadUrl, selectedFile, (progress) => {
         setUploadPercentage(progress);
-      })
+      }, mimeType)
 
       onFileChange({
         filename: selectedFile.name,
@@ -143,8 +144,9 @@ function MultiFileUploader({ files, onFilesChange, isUploading, setUploading }) 
         const fileTypeEnum = getFileType(file)
         
         console.log('[PublishModal] Solicitando URL para', file.name)
+        const mimeType = file.type || 'application/octet-stream'
         // 1. Pedir ticket
-        const res = await requestPresignedUrl(file.name, file.type || 'application/octet-stream', `projects/${fileTypeEnum.toLowerCase()}s`)
+        const res = await requestPresignedUrl(file.name, mimeType, `projects/${fileTypeEnum.toLowerCase()}s`)
         const { uploadUrl, fileKey } = res
         console.log('[PublishModal] URL obtenida:', uploadUrl)
 
@@ -153,7 +155,7 @@ function MultiFileUploader({ files, onFilesChange, isUploading, setUploading }) 
         await directS3Upload(uploadUrl, file, (progress) => {
           console.log('[PublishModal] Progreso:', progress)
           setUploadPercentage(progress);
-        })
+        }, mimeType)
         console.log('[PublishModal] Subida terminada para', file.name)
 
         // 3. Guardar metadatos
@@ -247,6 +249,7 @@ export default function PublishModal({ isOpen, onClose }) {
     description: '',
     tags: [],
     advisors: [],
+    attachedLinks: [],
     cover: null,
     files: [], // Unified files array
     // Paper specific
@@ -296,6 +299,7 @@ export default function PublishModal({ isOpen, onClose }) {
           university: currentUser.university || 'Independiente',
           branch: 'Ingeniería',
           advisors: formData.advisors,
+          attachedLinks: formData.attachedLinks,
           files: finalFiles
         })
       } else {
@@ -311,7 +315,8 @@ export default function PublishModal({ isOpen, onClose }) {
           branch: currentUser.branch || 'Ingeniería',
           journal: 'Publicación Independiente',
           year: new Date().getFullYear(),
-          advisors: []
+          advisors: [],
+          attachedLinks: formData.attachedLinks
         })
       }
       success('Enviado a revisión. Puedes ver su estado en tu Perfil.')
@@ -385,6 +390,13 @@ export default function PublishModal({ isOpen, onClose }) {
                 onChange={(val) => setFormData(p => ({ ...p, advisors: val }))}
               />
 
+              <TagInput 
+                label="Enlaces Adjuntos (Opcional)"
+                placeholder="Ej: https://github.com/tu-repo (Presiona Enter)"
+                value={formData.attachedLinks}
+                onChange={(val) => setFormData(p => ({ ...p, attachedLinks: val }))}
+              />
+
               <MultiFileUploader 
                 files={formData.files}
                 onFilesChange={(files) => setFormData(p => ({ ...p, files }))}
@@ -409,10 +421,18 @@ export default function PublishModal({ isOpen, onClose }) {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="form-group">
-                  <label className="form-label">Código DOI</label>
-                  <input name="doi" value={formData.doi} onChange={handleChange} className="form-input" placeholder="Ej: 10.1109/..." />
+                  <label className="form-label">DOI (Opcional)</label>
+                  <input name="doi" value={formData.doi} onChange={handleChange} className="form-input" placeholder="Ej: 10.1109/TCS.2023.1234567" />
                 </div>
               </div>
+
+              <TagInput 
+                label="Enlaces Adjuntos (Opcional)"
+                placeholder="Ej: https://github.com/tu-repo (Presiona Enter)"
+                value={formData.attachedLinks}
+                onChange={(val) => setFormData(p => ({ ...p, attachedLinks: val }))}
+              />
+
               <MultiFileUploader 
                 files={formData.files}
                 onFilesChange={(files) => setFormData(p => ({ ...p, files }))}

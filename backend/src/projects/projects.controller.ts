@@ -106,6 +106,18 @@ export class ProjectsController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Patch(':id/visibility')
+  @ApiOperation({ summary: 'Update project visibility (Author only)' })
+  async updateVisibility(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body('status') status: ProjectStatus,
+  ) {
+    return this.projectsService.toggleVisibility(+id, req.user.id, status);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Put(':id')
   @ApiOperation({ summary: 'Update a project (Author only)' })
   async updateProject(
