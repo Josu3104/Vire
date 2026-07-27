@@ -86,19 +86,7 @@ services:
       timeout: 5s
       retries: 5
 
-  minio-create-bucket:
-    image: minio/mc
-    container_name: vire-minio-setup
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set myminio http://minio:9000 ${S3_ACCESS_KEY:-admin} ${S3_SECRET_KEY:-change_me_in_production};
-      /usr/bin/mc mb myminio/vire-storage --ignore-existing;
-      /usr/bin/mc anonymous set public myminio/vire-storage;
-      exit 0;
-      "
+
 
   # ─── ClamAV (disabled for POC - uncomment for full production) ──
   # clamav:
