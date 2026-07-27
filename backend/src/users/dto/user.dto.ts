@@ -11,6 +11,26 @@ export class UpdateProfileDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  password?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  ieeeId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  cimeqhId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   bannerUrl?: string;
 
   @ApiProperty({ required: false })

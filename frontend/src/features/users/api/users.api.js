@@ -11,3 +11,7 @@ export const getTopEngineers = async () => {
 export const getUserById = async (id) => {
   return apiClient.get(`/users/${id}`);
 };
+
+export const requestMembershipValidation = async () => {
+  return apiClient.post('/users/request-membership-validation');
+};

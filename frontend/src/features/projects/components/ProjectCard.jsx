@@ -35,19 +35,23 @@ const IconCode = () => (
 )
 
 /* ---- Status mapping ---- */
-const statusClass = {
-  'Público': styles.statusPublico,
-  'Pendiente': styles.statusPendiente,
-  'Requiere Cambios': styles.statusCambios,
+const statusStyles = {
+  'publico': styles.statusPublico,
+  'pendiente': styles.statusPendiente,
+  'requiere_cambios': styles.statusCambios,
+  'denegado': styles.statusDenegado,
+  'privado': styles.statusPrivado
 }
 
-const statusLabel = {
-  'Público': 'Público',
-  'Pendiente': 'Pendiente',
-  'Requiere Cambios': 'Rev. requerida',
+const statusLabels = {
+  'publico': 'Público',
+  'pendiente': 'Pendiente',
+  'requiere_cambios': 'Rev. requerida',
+  'denegado': 'Denegado',
+  'privado': 'Archivado'
 }
 
-export default function ProjectCard({ project, onClick, animationDelay = 0, variant = 'grid' }) {
+export default function ProjectCard({ project, onClick, animationDelay = 0, variant = 'grid', showStatus = false, onStatusChange }) {
   const author = project?.authorsData?.[0] || null
   const isTeam = project?.authorIds && project.authorIds.length > 1
   const teamNames = isTeam
@@ -61,6 +65,12 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
   const { error } = useToast()
   const { openChatWith } = useChat()
   const navigate = useNavigate()
+  const [showMenu, setShowMenu] = useState(false)
+  const isOwnProject = currentUser && author && currentUser.id === author.id
+
+  const formattedDate = new Date(project.createdAt || Date.now()).toLocaleDateString('es-ES', {
+    day: 'numeric', month: 'short', year: 'numeric'
+  })
 
   const hasUpvoted = currentUser ? project.upvotedBy?.includes(currentUser.id) : false
 
@@ -101,7 +111,15 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
         <>
           {/* Header */}
           <div className={styles.socialHeader}>
-            <div className={styles.socialAuthor}>
+            <div 
+              className={styles.socialAuthor} 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                if (author?.id) navigate(`/usuario/${author.id}`) 
+              }}
+              style={{ cursor: author?.id ? 'pointer' : 'default' }}
+              title={author?.id ? `Ver perfil de ${project.author}` : ''}
+            >
               <div className={styles.authorAvatar}>
                 {author?.avatar ? (
                   <img src={author.avatar} alt={author.name} loading="lazy" />
@@ -114,13 +132,28 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
                   {isTeam ? `${author?.name} + coautores` : project.author}
                 </span>
                 <span className={styles.socialDate}>
-                  {project.createdAt} <span style={{ opacity: 0.6, marginLeft: '6px' }}>• {project.academicLevel || 'Universitario'}</span>
+                  {formattedDate} <span style={{ opacity: 0.6, marginLeft: '6px' }}>• {project.academicLevel || 'Universitario'}</span>
                 </span>
               </div>
             </div>
-            <span className={`${styles.statusBadgeInline} ${statusClass[project.status] ?? ''}`}>
-              {statusLabel[project.status] ?? project.status}
-            </span>
+            {showStatus && (
+              <span className={`${styles.statusBadgeInline} ${statusStyles[project.status] ?? ''}`}>
+                {statusLabels[project.status] ?? project.status}
+              </span>
+            )}
+            
+            {onStatusChange && (
+              <div className={styles.optionsMenuContainer}>
+                <button className={styles.optionsBtn} onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu) }}>⋮</button>
+                {showMenu && (
+                  <div className={styles.dropdownMenu}>
+                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onStatusChange(project, project.status === 'privado' ? 'publico' : 'privado') }}>
+                      {project.status === 'privado' ? '📢 Publicar' : '🗄️ Archivar'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Media */}
@@ -156,11 +189,9 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
             )}
 
             <div className={styles.indicators}>
-              {project.pdfLink && (
-                <span className={`${styles.indicator} ${styles.indicatorPdf}`} title="Incluye Paper PDF">
-                  <IconFilePdf /> Paper PDF
-                </span>
-              )}
+              <span className={`${styles.indicator} ${styles.indicatorType}`}>
+                {project.type === 'paper' ? 'Investigación' : 'Proyecto'}
+              </span>
               {project.cadLink && (
                 <span className={`${styles.indicator} ${styles.indicatorCad}`} title="Incluye Modelo CAD/3D">
                   <IconBox /> Modelo 3D
@@ -225,9 +256,24 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
             <div className={styles.overlay} />
 
             {/* Status badge */}
-            <span className={`${styles.statusBadge} ${statusClass[project.status] ?? ''}`}>
-              {statusLabel[project.status] ?? project.status}
-            </span>
+            {showStatus && (
+              <span className={`${styles.statusBadge} ${statusStyles[project.status] ?? ''}`}>
+                {statusLabels[project.status] ?? project.status}
+              </span>
+            )}
+
+            {onStatusChange && (
+              <div className={styles.optionsMenuContainerAbs}>
+                <button className={styles.optionsBtnAbs} onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu) }}>⋮</button>
+                {showMenu && (
+                  <div className={styles.dropdownMenuAbs}>
+                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onStatusChange(project, project.status === 'privado' ? 'publico' : 'privado') }}>
+                      {project.status === 'privado' ? '📢 Publicar' : '🗄️ Archivar'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Upvote pill & Contact */}
             <div style={{ position: 'absolute', bottom: '10px', right: '10px', display: 'flex', gap: '8px' }}>
@@ -264,10 +310,20 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
             )}
 
             <div className={styles.meta}>
-              <div className={styles.authorRow}>
+              <div 
+                className={styles.authorRow}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (author?.id) navigate(`/usuario/${author.id}`) 
+                }}
+                style={{ cursor: author?.id ? 'pointer' : 'default' }}
+                title={author?.id ? `Ver perfil de ${project.author}` : ''}
+              >
                 <div className={styles.authorAvatar}>
-                  {author?.avatar && (
+                  {author?.avatar ? (
                     <img src={author.avatar} alt={author.name} loading="lazy" />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: 'var(--accent-subtle)' }} />
                   )}
                 </div>
                 <span className={styles.authorName}>
@@ -286,16 +342,9 @@ export default function ProjectCard({ project, onClick, animationDelay = 0, vari
 
             {/* ── File indicators ── */}
             <div className={styles.indicators} aria-label="Archivos disponibles">
-              {project.type === 'paper' && (
-                <span className={`${styles.indicator} ${styles.indicatorPdf}`} title="Paper académico">
-                  <IconFilePdf /> Paper
-                </span>
-              )}
-              {project.pdfLink && project.type !== 'paper' && (
-                <span className={`${styles.indicator} ${styles.indicatorPdf}`} title="Incluye Paper PDF">
-                  <IconFilePdf /> PDF
-                </span>
-              )}
+              <span className={`${styles.indicator} ${styles.indicatorType}`}>
+                {project.type === 'paper' ? 'Investigación' : 'Proyecto'}
+              </span>
               {project.cadLink && (
                 <span className={`${styles.indicator} ${styles.indicatorCad}`} title="Incluye Modelo CAD/3D">
                   <IconBox /> CAD/3D

@@ -4,6 +4,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+# VITE_API_URL: set to your backend public URL in Railway (e.g. https://vire-backend.up.railway.app)
+# If empty, the frontend will use relative /api paths (works when frontend & backend are same origin)
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # Production Stage

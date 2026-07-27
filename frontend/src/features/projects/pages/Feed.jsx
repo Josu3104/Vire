@@ -1,4 +1,3 @@
-// src/pages/Feed.jsx
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/context/AuthContext'
@@ -75,9 +74,9 @@ export default function Feed() {
   const [filters, setFilters]             = useState({ levels: [], universities: [], branches: [], tags: [] })
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [viewMode, setViewMode]           = useState('scroll')
+  const [page, setPage]                   = useState(1)
   
-  // Layout states
-  const [isFilterCollapsed, setIsFilterCollapsed] = useState(false)
+  const [isFilterCollapsed] = useState(false)
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   
@@ -106,6 +105,10 @@ export default function Feed() {
     }
   }, [searchQuery, searchMode])
 
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, filters, sortBy, searchMode])
+
   // Soft-wall: scroll trigger for guests
   useEffect(() => {
     if (isAuthenticated) return
@@ -125,9 +128,9 @@ export default function Feed() {
     navigate(`/proyecto/${project.id}`)
   }, [isAuthenticated, navigate])
 
-  // ── FIXED: non-admin users only see "Público" projects ──
+  // ── FIXED: non-admin users only see "publico" projects ──
   const visible = projects
-    .filter((p) => p.status === 'Público' || isAdmin || (currentUser && p.authorIds?.includes(currentUser.id)))
+    .filter((p) => p.status === 'publico' || isAdmin || (currentUser && p.authorIds?.includes(currentUser.id)))
     .filter((p) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase()
@@ -223,13 +226,15 @@ export default function Feed() {
           </div>
           
           {/* Desktop Filter Toggle */}
-          <button
-            className={styles.desktopFilterToggle}
-            onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
-            title={isFilterCollapsed ? "Mostrar Filtros" : "Ocultar Filtros"}
-          >
-            {isFilterCollapsed ? <IconFilter /> : <IconFilterOff />}
-          </button>
+          {(filters.levels?.length > 0 || filters.universities?.length > 0 || filters.branches?.length > 0 || filters.tags?.length > 0) && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setFilters({ levels: [], universities: [], branches: [], tags: [] })}
+              style={{ padding: '0 12px', height: '36px', borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
         
         {/* Mobile Filter Toggle */}
@@ -248,7 +253,7 @@ export default function Feed() {
       <div className={`${styles.layout} ${isFilterCollapsed ? styles.layoutCollapsed : ''}`}>
         
         {/* Sidebar Left: Filters */}
-        <div className={`${styles.sidebarCol} ${isFilterCollapsed ? styles.hiddenDesktop : ''}`}>
+        <div className={styles.sidebarCol}>
           <FilterSidebar 
             filters={filters} 
             onChange={setFilters} 
@@ -276,9 +281,7 @@ export default function Feed() {
                 <><strong>{userResults.length}</strong> usuario{userResults.length !== 1 ? 's' : ''} encontrado{userResults.length !== 1 ? 's' : ''}</>
               )}
             </p>
-            <p className={styles.viewModeLabel}>
-              {viewMode === 'scroll' ? '↕ Modo Scroll' : '▦ Modo Grid'}
-            </p>
+
           </div>
 
           {isLoading || isSearchingUsers ? (
@@ -322,12 +325,25 @@ export default function Feed() {
                 )
               ) : (
                 visible.length > 0 ? (
-                  visible.map((p) => (
-                    <ProjectCard key={p.id} project={p} onClick={() => handleCardClick(p)} variant={viewMode} />
-                  ))
+                  <>
+                    {visible.slice(0, page * 10).map((p) => (
+                      <ProjectCard key={p.id} project={p} onClick={() => handleCardClick(p)} variant={viewMode} />
+                    ))}
+                    {visible.length > page * 10 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0', gridColumn: '1 / -1' }}>
+                        <button className="btn btn-secondary" onClick={() => setPage(p => p + 1)}>
+                          Cargar más
+                        </button>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className={styles.emptyState}>
-                    <p>No se encontraron proyectos con esos filtros.</p>
+                    <p>
+                      {(searchQuery.length > 0 || filters.levels?.length > 0 || filters.universities?.length > 0 || filters.branches?.length > 0 || filters.tags?.length > 0)
+                        ? 'No se encontraron proyectos con esos filtros.'
+                        : 'Aún no hay proyectos públicos disponibles. ¡Sé el primero en publicar uno!'}
+                    </p>
                   </div>
                 )
               )}
@@ -351,10 +367,10 @@ export default function Feed() {
           )}
         </main>
         
-        {/* Sidebar Right: Widgets (Desktop Only) - Oculto temporalmente a petición del usuario */}
-        {/* <div className={styles.rightSidebarCol}>
+        {/* Sidebar Right: Widgets (Desktop Only) */}
+        <div className={styles.rightSidebarCol}>
           <RightSidebar />
-        </div> */}
+        </div>
       </div>
 
       {/* Auth Modal (Soft-Wall) */}

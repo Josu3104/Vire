@@ -100,7 +100,7 @@
   display: flex;
   flex: 1;
   gap: 0;
-  max-width: 1300px;
+  max-width: 1600px;
   width: 100%;
   margin: 0 auto;
   transition: all var(--duration-base) var(--ease-out);
@@ -114,24 +114,32 @@
   transition: width var(--duration-base) var(--ease-out), padding var(--duration-base) var(--ease-out), opacity var(--duration-base) var(--ease-out);
 }
 
-.layoutCollapsed .sidebarCol {
+.spacerCol {
+  width: 280px;
+  padding: 24px 20px 24px 24px;
+  flex-shrink: 0;
+  visibility: hidden;
+  border: none;
+  transition: width var(--duration-base) var(--ease-out), padding var(--duration-base) var(--ease-out), opacity var(--duration-base) var(--ease-out);
+}
+
+.layoutCollapsed .sidebarCol, .layoutCollapsed .spacerCol {
   width: 0;
   padding-left: 0;
   padding-right: 0;
   opacity: 0;
   overflow: hidden;
-  border-right: none;
+  border: none;
+}
+
+.rightSidebarCol {
+  width: 280px;
+  padding: 24px 24px 24px 0;
+  flex-shrink: 0;
 }
 
 .hiddenDesktop {
   display: none !important;
-}
-
-.rightSidebarCol {
-  width: 320px;
-  padding: 24px 24px 24px 20px;
-  border-left: 1px solid var(--border-subtle);
-  flex-shrink: 0;
 }
 
 .mainCol {

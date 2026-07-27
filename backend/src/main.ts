@@ -11,6 +11,11 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Increase payload limit to 50mb
+  const express = require('express');
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
   // Global Validation Pipe for DTOs
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,

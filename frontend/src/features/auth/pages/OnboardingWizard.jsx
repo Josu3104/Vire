@@ -1,26 +1,9 @@
 // src/pages/OnboardingWizard.jsx
 import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/context/AuthContext'
 import { useToast } from '@/core/notifications/ToastContext'
 import styles from './OnboardingWizard.module.css'
-
-// ─── Avatar Options ────────────────────────────────────────────────────────
-const AVATARS = [
-  { id: 'av1', url: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Engineer1&backgroundColor=1e3a5f', label: 'Ingeniero Azul' },
-  { id: 'av2', url: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Engineer2&backgroundColor=0f3d2e', label: 'Investigador Verde' },
-  { id: 'av3', url: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Robotic1&backgroundColor=2d1b69', label: 'Robótica Púrpura' },
-  { id: 'av4', url: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Circuit1&backgroundColor=3d1a1a', label: 'Circuito Rojo' },
-  { id: 'av5', url: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Gear1&backgroundColor=1a3d3d', label: 'Engranaje Cyan' },
-  { id: 'av6', url: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Tech1&backgroundColor=2d2d0f', label: 'Techie Dorado' },
-]
-
-const BANNERS = [
-  { id: 'bn1', url: 'https://picsum.photos/seed/circuit-board/1400/400', label: 'Circuito PCB' },
-  { id: 'bn2', url: 'https://picsum.photos/seed/robotics-lab/1400/400', label: 'Lab de Robótica' },
-  { id: 'bn3', url: 'https://picsum.photos/seed/drone-sky/1400/400', label: 'Drones' },
-  { id: 'bn4', url: 'https://picsum.photos/seed/code-dark/1400/400', label: 'Código' },
-]
 
 const ACADEMIC_STATUSES = [
   'Estudiante Universitario',
@@ -63,52 +46,24 @@ function StepIndicator({ current, total }) {
   )
 }
 
-// ─── Skip Warning Modal ──────────────────────────────────────────────────────
-function SkipModal({ onComplete, onSkip }) {
-  return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modal}>
-        <div className={styles.modalIcon}>⚠️</div>
-        <h2 className={styles.modalTitle}>¡Perfil Incompleto!</h2>
-        <p className={styles.modalBody}>
-          Si decides saltar, tu cuenta quedará con rol <strong>Común</strong>. No
-          podrás realizar publicaciones, subir papers ni interactuar con la bolsa de
-          empleo hasta completar estos datos.
-        </p>
-        <div className={styles.modalActions}>
-          <button className={styles.modalBtnPrimary} onClick={onComplete}>
-            Completar ahora
-          </button>
-          <button className={styles.modalBtnGhost} onClick={onSkip}>
-            Saltar de todos modos
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function OnboardingWizard() {
-  const { currentUser, updateProfile } = useAuth()
+  const { register, updateProfile } = useAuth()
   const { error } = useToast()
   const navigate = useNavigate()
+  const location = useLocation()
   const fileInputRef = useRef(null)
 
-  const [step, setStep] = useState(0) // 0 | 1 | 2
+  const [step, setStep] = useState(0) // 0 | 1
   const [showSkipModal, setShowSkipModal] = useState(false)
 
   // Step 1 data
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].url)
-  const [selectedBanner, setSelectedBanner] = useState(BANNERS[0].url)
-
-  // Step 2 data
   const [academicStatus, setAcademicStatus] = useState('')
   const [institution, setInstitution] = useState('')
   const [campus, setCampus] = useState('')
   const [city, setCity] = useState('')
 
-  // Step 3 data
+  // Step 2 data
   const [birthdate, setBirthdate] = useState('')
   const [phone, setPhone] = useState('')
   const [bio, setBio] = useState('')
@@ -117,7 +72,15 @@ export default function OnboardingWizard() {
   const coreFieldsFilled = academicStatus && institution && birthdate
 
   const handleNext = () => {
+    if (step === 1) {
+      if (!academicStatus) return error('Debes seleccionar tu estado académico para continuar.')
+      if (!institution) return error('Debes seleccionar tu institución para continuar.')
+    }
     if (step < 2) setStep((s) => s + 1)
+  }
+
+  const handleCancel = () => {
+    navigate('/')
   }
 
   const handleBack = () => {
@@ -146,23 +109,42 @@ export default function OnboardingWizard() {
   }
 
   const handleForceSkip = () => {
-    try {
-      setShowSkipModal(false)
-      updateProfile({ role: 'comun',  isContactPublic: true,
-      onboardingComplete: true 
-      })
-      navigate('/explorar')
-    } catch (e) {
-      console.error("Error in handleForceSkip:", e)
-      navigate('/explorar')
-    }
+    setShowSkipModal(false)
+    handleFinish()
   }
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    if (!birthdate) {
+      return error('La fecha de nacimiento es obligatoria.')
+    }
+
+    const regData = location.state?.registrationData
+    if (!regData) {
+      error("No hay datos de registro. Por favor vuelve a intentarlo.")
+      navigate('/')
+      return
+    }
+
     try {
-      updateProfile({
-        avatarUrl: selectedAvatar || null,
-        bannerUrl: selectedBanner || null,
+      // 1. Create the user
+      const result = await register({
+        name: regData.name,
+        email: regData.email,
+        password: regData.password,
+        ieeeId: regData.ieeeId,
+        cimeqhId: regData.cimeqhId,
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || "Error al crear la cuenta")
+      }
+
+      // 2. Default avatar
+      const finalAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(regData.name)}&background=random`
+
+      // 3. Update profile
+      await updateProfile({
+        avatarUrl: finalAvatarUrl,
         academicStatus: academicStatus || null,
         university: institution || null,
         campus: campus ? campus.trim() : null,
@@ -177,14 +159,13 @@ export default function OnboardingWizard() {
       navigate('/explorar')
     } catch (e) {
       console.error("Error in handleFinish:", e)
-      error("Hubo un error al guardar tu perfil. Inténtalo de nuevo.")
+      error(e.message || "Hubo un error al guardar tu perfil. Inténtalo de nuevo.")
     }
   }
 
   const STEPS = [
-    { label: 'Identidad Visual', emoji: '🎨' },
-    { label: 'Datos Académicos', emoji: '🎓' },
-    { label: 'Contacto & Bio', emoji: '📋' },
+    { label: 'Datos Académicos' },
+    { label: 'Contacto & Bio' },
   ]
 
   return (
@@ -203,63 +184,13 @@ export default function OnboardingWizard() {
           </div>
           <h1 className={styles.title}>Configura tu Perfil</h1>
           <p className={styles.subtitle}>
-            Paso <strong>{step + 1}</strong> de {STEPS.length} — {STEPS[step].emoji} {STEPS[step].label}
+            Paso <strong>{step + 1}</strong> de {STEPS.length} — {STEPS[step].label}
           </p>
           <StepIndicator current={step} total={STEPS.length} />
         </div>
 
-        {/* ── STEP 0: Identity ────────────────────────────────────────────── */}
+        {/* ── STEP 0: Academic Info ─────────────────────────────────────── */}
         {step === 0 && (
-          <div className={styles.stepBody}>
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Elige tu Avatar</h3>
-              <div className={styles.avatarGrid}>
-                {AVATARS.map((av) => (
-                  <button
-                    key={av.id}
-                    className={`${styles.avatarOption} ${selectedAvatar === av.url ? styles.avatarSelected : ''}`}
-                    onClick={() => setSelectedAvatar(av.url)}
-                    title={av.label}
-                    type="button"
-                  >
-                    <img src={av.url} alt={av.label} />
-                    {selectedAvatar === av.url && <div className={styles.avatarCheck}>✓</div>}
-                  </button>
-                ))}
-              </div>
-              {/* TODO: Conectar con Storage real para imágenes personalizadas */}
-              <input type="file" accept="image/*" style={{ display: 'none' }} ref={fileInputRef} />
-              <button
-                type="button"
-                className={styles.uploadHint}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                📁 Subir foto personalizada (próximamente)
-              </button>
-            </section>
-
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Elige tu Banner de Portada</h3>
-              <div className={styles.bannerGrid}>
-                {BANNERS.map((bn) => (
-                  <button
-                    key={bn.id}
-                    className={`${styles.bannerOption} ${selectedBanner === bn.url ? styles.bannerSelected : ''}`}
-                    onClick={() => setSelectedBanner(bn.url)}
-                    type="button"
-                  >
-                    <img src={bn.url} alt={bn.label} />
-                    <span className={styles.bannerLabel}>{bn.label}</span>
-                    {selectedBanner === bn.url && <div className={styles.bannerCheck}>✓</div>}
-                  </button>
-                ))}
-              </div>
-            </section>
-          </div>
-        )}
-
-        {/* ── STEP 1: Academic Info ─────────────────────────────────────── */}
-        {step === 1 && (
           <div className={styles.stepBody}>
             <div className={styles.formGrid}>
               <div className="form-group">
@@ -328,8 +259,8 @@ export default function OnboardingWizard() {
           </div>
         )}
 
-        {/* ── STEP 2: Contact & Bio ─────────────────────────────────────── */}
-        {step === 2 && (
+        {/* ── STEP 1: Contact & Bio ───────────────────────────────────────── */}
+        {step === 1 && (
           <div className={styles.stepBody}>
             <div className={styles.formGrid}>
               <div className="form-group">
@@ -383,9 +314,10 @@ export default function OnboardingWizard() {
           <button
             type="button"
             className={styles.skipBtn}
-            onClick={handleSkipAttempt}
+            onClick={() => setShowSkipModal(true)}
+            style={{ color: '#ef4444' }}
           >
-            Saltar por ahora
+            Cancelar Registro
           </button>
           <div className={styles.navBtns}>
             {step > 0 && (
@@ -403,19 +335,32 @@ export default function OnboardingWizard() {
                 className={styles.finishBtn}
                 onClick={handleFinish}
               >
-                🚀 Completar Perfil
+                Completar Perfil
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Skip warning modal */}
+      {/* Cancel warning modal */}
       {showSkipModal && (
-        <SkipModal
-          onComplete={() => setShowSkipModal(false)}
-          onSkip={handleForceSkip}
-        />
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalIcon}>⚠️</div>
+            <h2 className={styles.modalTitle}>¿Cancelar Registro?</h2>
+            <p className={styles.modalBody}>
+              Toda la información ingresada se perderá y tu cuenta no será creada.
+            </p>
+            <div className={styles.modalActions}>
+              <button className={styles.modalBtnGhost} onClick={() => setShowSkipModal(false)}>
+                Volver
+              </button>
+              <button className={styles.modalBtnPrimary} style={{ background: '#ef4444', borderColor: '#ef4444' }} onClick={handleCancel}>
+                Sí, cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

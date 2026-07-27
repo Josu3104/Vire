@@ -116,6 +116,11 @@ function FilterSection({ title, icon, options, selected, onChange }) {
 
 export default function FilterSidebar({ filters, onChange, isOpen, onClose }) {
   const [filterOptions, setFilterOptions] = useState({ levels: [], universities: [], branches: [], tags: [] })
+  const [localFilters, setLocalFilters] = useState(filters)
+
+  useEffect(() => {
+    setLocalFilters(filters)
+  }, [filters])
 
   useEffect(() => {
     getFilters().then(data => {
@@ -129,13 +134,22 @@ export default function FilterSidebar({ filters, onChange, isOpen, onClose }) {
   }, [])
 
   const hasFilters =
-    (filters.levels && filters.levels.length > 0) ||
-    filters.universities.length > 0 ||
-    filters.branches.length > 0 ||
-    filters.tags.length > 0
+    (localFilters.levels && localFilters.levels.length > 0) ||
+    localFilters.universities.length > 0 ||
+    localFilters.branches.length > 0 ||
+    localFilters.tags.length > 0
 
-  const clearAll = () =>
+  const clearAll = () => {
+    setLocalFilters({ levels: [], universities: [], branches: [], tags: [] })
     onChange({ levels: [], universities: [], branches: [], tags: [] })
+  }
+
+  const applyFilters = () => {
+    onChange(localFilters)
+    if (window.innerWidth <= 992) {
+      onClose()
+    }
+  }
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`} aria-label="Filtros de búsqueda">
@@ -158,30 +172,40 @@ export default function FilterSidebar({ filters, onChange, isOpen, onClose }) {
           title="Nivel Académico"
           icon={<IconLevel />}
           options={filterOptions.levels || []}
-          selected={filters.levels || []}
-          onChange={(val) => onChange({ ...filters, levels: val })}
+          selected={localFilters.levels || []}
+          onChange={(val) => setLocalFilters({ ...localFilters, levels: val })}
         />
         <FilterSection
           title="Universidad"
           icon={<IconUniversity />}
           options={filterOptions.universities}
-          selected={filters.universities}
-          onChange={(val) => onChange({ ...filters, universities: val })}
+          selected={localFilters.universities}
+          onChange={(val) => setLocalFilters({ ...localFilters, universities: val })}
         />
         <FilterSection
           title="Rama"
           icon={<IconBranch />}
           options={filterOptions.branches}
-          selected={filters.branches}
-          onChange={(val) => onChange({ ...filters, branches: val })}
+          selected={localFilters.branches}
+          onChange={(val) => setLocalFilters({ ...localFilters, branches: val })}
         />
         <FilterSection
           title="Tags"
           icon={<IconTag />}
           options={filterOptions.tags}
-          selected={filters.tags}
-          onChange={(val) => onChange({ ...filters, tags: val })}
+          selected={localFilters.tags}
+          onChange={(val) => setLocalFilters({ ...localFilters, tags: val })}
         />
+
+        <div style={{ padding: '16px', position: 'sticky', bottom: 0, background: 'var(--bg-surface)', borderTop: '1px solid var(--border-subtle)', marginTop: 'auto' }}>
+          <button 
+            className="btn btn-primary" 
+            style={{ width: '100%' }}
+            onClick={applyFilters}
+          >
+            Aplicar Filtros
+          </button>
+        </div>
       </div>
     </aside>
   )

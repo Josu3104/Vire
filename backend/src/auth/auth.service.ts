@@ -29,7 +29,7 @@ export class AuthService {
     };
   }
 
-  async register(data: Prisma.UserCreateInput & { password?: string }) {
+  async register(data: Prisma.UserCreateInput & { password?: string, ieeeId?: string, cimeqhId?: string }) {
     const existingUser = await this.usersService.findByEmail(data.email);
     if (existingUser) {
       throw new ConflictException('Email already in use');
@@ -39,10 +39,13 @@ export class AuthService {
     const hash = await bcrypt.hash(data.password || 'password123', salt);
     
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userCreateData } = data;
+    const { password, ieeeId, cimeqhId, ...userCreateData } = data;
     
     const newUser = await this.usersService.createUser({
       ...userCreateData,
+      ieeeId,
+      cimeqhId,
+      pendingVerification: !!(ieeeId || cimeqhId),
       passwordHash: hash,
       profile: {
         create: {},
@@ -50,5 +53,10 @@ export class AuthService {
     });
 
     return this.login(newUser);
+  }
+
+  async checkEmailAvailability(email: string): Promise<{ available: boolean }> {
+    const existingUser = await this.usersService.findByEmail(email);
+    return { available: !existingUser };
   }
 }

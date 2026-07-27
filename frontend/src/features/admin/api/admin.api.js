@@ -20,6 +20,10 @@ export const approveUser = async (id) => {
   return apiClient.post(`/users/${id}/approve`);
 };
 
+export const rejectUser = async (id, reason) => {
+  return apiClient.post(`/users/${id}/reject`, { reason });
+};
+
 export const getSettings = async () => {
   return apiClient.get('/admin/settings');
 };
@@ -27,3 +31,4 @@ export const getSettings = async () => {
 export const updateSetting = async (key, value) => {
   return apiClient.put('/admin/settings', { key, value });
 };
+

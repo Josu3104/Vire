@@ -1,24 +1,34 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadBucketCommand, CreateBucketCommand, PutBucketPolicyCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
 import { StorageProvider } from './storage.provider';
 
 @Injectable()
-export class MinIOStorageProvider implements StorageProvider {
+export class MinIOStorageProvider implements StorageProvider, OnModuleInit {
   private s3Client: S3Client;
   private presignClient: S3Client;
   private bucket: string;
   private publicEndpoint: string;
 
   constructor(private configService: ConfigService) {
-    const endpoint = this.configService.get<string>('S3_ENDPOINT') || 'http://localhost:8333';
+    let endpoint = this.configService.get<string>('S3_ENDPOINT');
+    if (!endpoint) {
+      const minioHost = this.configService.get<string>('MINIO_HOST');
+      const minioPort = this.configService.get<string>('MINIO_PORT') || '9000';
+      if (minioHost) {
+        endpoint = `http://${minioHost}:${minioPort}`;
+      } else {
+        endpoint = 'http://localhost:8333';
+      }
+    }
+    
     this.bucket = this.configService.get<string>('S3_BUCKET') || 'vire-storage';
-    // For local dev, S3_ENDPOINT is usually 'http://minio:9000', but publicEndpoint should be 'http://127.0.0.1:8333'
+    // For local dev, S3_ENDPOINT is usually 'http://minio:9000', but publicEndpoint should be 'http://localhost:8333'
     // To keep it simple, we check if it includes 'minio'
-    this.publicEndpoint = endpoint.includes('minio') ? 'http://127.0.0.1:8333' : endpoint;
+    this.publicEndpoint = this.configService.get<string>('S3_PUBLIC_ENDPOINT') || (endpoint.includes('minio') ? 'http://localhost:8333' : endpoint);
     
     const credentials = {
       accessKeyId: this.configService.get<string>('S3_ACCESS_KEY') || 'admin',
@@ -39,6 +49,35 @@ export class MinIOStorageProvider implements StorageProvider {
       credentials,
       forcePathStyle: true,
     });
+  }
+
+  async onModuleInit() {
+    try {
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+    } catch (error) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+        console.log(`[Storage] Bucket '${this.bucket}' no encontrado. Creándolo automáticamente...`);
+        try {
+          await this.s3Client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+          const policy = JSON.stringify({
+            Version: '2012-10-17',
+            Statement: [
+              {
+                Sid: 'PublicReadGetObject',
+                Effect: 'Allow',
+                Principal: '*',
+                Action: 's3:GetObject',
+                Resource: `arn:aws:s3:::${this.bucket}/*`,
+              },
+            ],
+          });
+          await this.s3Client.send(new PutBucketPolicyCommand({ Bucket: this.bucket, Policy: policy }));
+          console.log(`[Storage] Bucket '${this.bucket}' creado y configurado como público exitosamente.`);
+        } catch (e) {
+          console.error(`[Storage] Fallo al crear el bucket o aplicar la política:`, e);
+        }
+      }
+    }
   }
 
   async uploadFile(file: Express.Multer.File, folder: string = 'general'): Promise<string> {

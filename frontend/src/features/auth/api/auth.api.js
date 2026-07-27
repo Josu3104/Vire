@@ -8,6 +8,10 @@ export const register = async (data) => {
   return apiClient.post("/auth/register",data);
 };
 
+export const checkEmail = async (email) => {
+  return apiClient.get(`/auth/check-email?email=${encodeURIComponent(email)}`);
+};
+
 export const logout = async () => {
     localStorage.clear();
   return Promise.resolve({ message: 'Mock logout success' });

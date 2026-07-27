@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
         },
         '/vire-storage': {
           target: 'http://minio:9000',
-          changeOrigin: true,
+          changeOrigin: false,
         },
         '/socket.io': {
           target: apiUrl,

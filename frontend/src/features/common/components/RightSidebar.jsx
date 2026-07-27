@@ -1,10 +1,7 @@
-// src/components/RightSidebar.jsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { getTopEngineers } from '@/features/users/api/users.api'
 import styles from './RightSidebar.module.css'
-
-const trendingTags = []
-const topEngineers = { national: [], university: [] }
-const jobListings = []
 
 const IconTrending = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -30,85 +27,32 @@ const IconBriefcase = () => (
 )
 
 export default function RightSidebar() {
-  const [engineerTab, setEngineerTab] = useState('national') // 'national' | 'university'
+  const [topUsers, setTopUsers] = useState([])
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    getTopEngineers().then(setTopUsers).catch(console.error)
+  }, [])
 
   return (
     <aside className={styles.sidebar}>
-      
-      {/* Widget 1: Trends */}
-      <div className={styles.widget}>
-        <div className={styles.widgetHeader}>
-          <IconTrending />
-          <h3>Tendencias (Top 5)</h3>
-        </div>
-        <div className={styles.widgetBody}>
-          {trendingTags.map((tag, i) => (
-            <div key={tag.name} className={styles.trendRow}>
-              <span className={styles.trendRank}>#{i + 1}</span>
-              <span className={styles.trendName}>{tag.name}</span>
-              <span className={styles.trendCount}>{tag.count} proyectos</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Widget 2: Top Engineers */}
       <div className={styles.widget}>
         <div className={styles.widgetHeader}>
           <IconTrophy />
-          <h3>Top Engineers</h3>
+          <h3>Miembros Destacados</h3>
         </div>
-        <div className={styles.tabs}>
-          <button 
-            className={`${styles.tabBtn} ${engineerTab === 'national' ? styles.tabActive : ''}`}
-            onClick={() => setEngineerTab('national')}
-          >
-            Nacional
-          </button>
-          <button 
-            className={`${styles.tabBtn} ${engineerTab === 'university' ? styles.tabActive : ''}`}
-            onClick={() => setEngineerTab('university')}
-          >
-            Universidad
-          </button>
-        </div>
-        <div className={styles.widgetBody}>
-          {topEngineers[engineerTab].map((eng, i) => (
-            <div key={eng.id} className={styles.engRow}>
-              <img src={eng.avatar} alt={eng.name} className={styles.engAvatar} loading="lazy" />
-              <div className={styles.engInfo}>
-                <span className={styles.engName}>{eng.name}</span>
-                <span className={styles.engScore}>{eng.score} pts</span>
-              </div>
-              <div className={styles.engRank}>
-                {i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}
+        <div className={styles.topUsersList}>
+          {topUsers.map(user => (
+            <div key={user.id} className={styles.topUserItem} onClick={() => navigate(`/usuario/${user.id}`)} style={{ cursor: 'pointer', display: 'flex', gap: '12px', padding: '12px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <img src={user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`} alt={user.name} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{user.name}</p>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>{user.affiliation || 'Vire'}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
-
-      {/* Widget 3: Job Board */}
-      <div className={styles.widget}>
-        <div className={styles.widgetHeader}>
-          <IconBriefcase />
-          <h3>Empleo & Oportunidades</h3>
-        </div>
-        <div className={styles.widgetBody}>
-          {jobListings.map(job => (
-            <div key={job.id} className={styles.jobCard}>
-              <h4 className={styles.jobTitle}>{job.title}</h4>
-              <p className={styles.jobCompany}>{job.company}</p>
-              <div className={styles.jobMeta}>
-                <span>{job.location}</span>
-                <span>•</span>
-                <span>{job.type}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
     </aside>
   )
 }

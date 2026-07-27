@@ -179,8 +179,8 @@ export default function Navbar() {
               aria-label="Menú de usuario"
               onKeyDown={(e) => e.key === 'Enter' && setDropdownOpen((v) => !v)}
             >
-              {currentUser?.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.name} />
+              {currentUser?.avatarUrl || currentUser?.avatar ? (
+                <img src={currentUser.avatarUrl || currentUser.avatar} alt={currentUser.name} />
               ) : (
                 <div style={{ width: '100%', height: '100%', background: 'var(--accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-400)', fontSize: 14 }}>
                   {currentUser?.name?.[0] ?? '?'}

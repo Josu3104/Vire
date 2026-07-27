@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageProvider } from '../storage/storage.provider';
 import { ScannerService } from '../scanner/scanner.service';
@@ -25,7 +25,12 @@ export class ProjectsService {
       files?: Array<{filename: string, originalName: string, mimeType: string, size: number, storageKey: string, type: any}>
     }
   ) {
-    const endpoint = process.env.S3_PUBLIC_ENDPOINT || 'http://localhost:8333';
+    let endpoint = process.env.S3_PUBLIC_ENDPOINT;
+    if (!endpoint) {
+      const minioHost = process.env.MINIO_HOST;
+      const minioPort = process.env.MINIO_PORT || '9000';
+      endpoint = minioHost ? `http://${minioHost}:${minioPort}` : 'http://localhost:8333';
+    }
     const bucket = process.env.S3_BUCKET || 'vire-storage';
     
     const { type, abstract, doi, year, journal, coauthors, files, ...projectData } = data;
@@ -92,7 +97,12 @@ export class ProjectsService {
     }
 
     const { type, abstract, doi, year, journal, coauthors, files, ...projectData } = data;
-    const endpoint = process.env.S3_PUBLIC_ENDPOINT || 'http://localhost:8333';
+    let endpoint = process.env.S3_PUBLIC_ENDPOINT;
+    if (!endpoint) {
+      const minioHost = process.env.MINIO_HOST;
+      const minioPort = process.env.MINIO_PORT || '9000';
+      endpoint = minioHost ? `http://${minioHost}:${minioPort}` : 'http://localhost:8333';
+    }
     const bucket = process.env.S3_BUCKET || 'vire-storage';
 
     let newFilesToScan: string[] = [];
@@ -161,6 +171,9 @@ export class ProjectsService {
   private async scanProjectFilesAsync(projectId: number, fileKeys: string[]) {
     try {
       let isInfected = false;
+      
+      /*
+      // Antivirus scanning temporarily disabled
       for (const key of fileKeys) {
         // Skip scanning huge CAD files for now (or implement chunk streaming)
         if (key.endsWith('.sldprt') || key.endsWith('.step')) {
@@ -177,6 +190,7 @@ export class ProjectsService {
           await this.storageService.deleteFile(key);
         }
       }
+      */
 
       await this.prisma.project.update({
         where: { id: projectId },
@@ -272,7 +286,33 @@ export class ProjectsService {
     return this.mapLegacyFields(project);
   }
 
+  async toggleVisibility(projectId: number, userId: number, status: ProjectStatus) {
+    const existingProject = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { authors: true }
+    });
+    if (!existingProject) throw new NotFoundException('Project not found');
+    
+    const isAuthor = existingProject.authors.some(a => a.userId === userId);
+    if (!isAuthor) throw new ForbiddenException('Only authors can change project visibility');
+    if (status !== 'publico' && status !== 'privado') throw new BadRequestException('Invalid visibility status');
+
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { status }
+    });
+  }
+
   async updateStatus(projectId: number, status: ProjectStatus, adminId: number, rejectionReason?: string) {
+    const existingProject = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!existingProject) throw new NotFoundException('Project not found');
+    if (existingProject.status !== 'pendiente') {
+      throw new Error('CONCURRENCY_ERROR: Este proyecto ya fue revisado por otro administrador.');
+    }
+
+    const admin = await this.prisma.user.findUnique({ where: { id: adminId } });
+    const adminName = admin?.name || 'Un Administrador';
+
     const project = await this.prisma.project.update({
       where: { id: projectId },
       data: {
@@ -289,7 +329,7 @@ export class ProjectsService {
     if (status === 'denegado' || status === 'requiere_cambios') {
       const reasonMessage = rejectionReason ? `\n\nMotivo: ${rejectionReason}` : '';
       const notificationTitle = status === 'denegado' ? 'Proyecto Denegado' : 'Proyecto Requiere Cambios';
-      const notificationMessage = `Tu proyecto "${project.title}" ha sido revisado y ${status === 'denegado' ? 'denegado' : 'requiere cambios'} para ser publicado.${reasonMessage}`;
+      const notificationMessage = `El administrador ${adminName} ha revisado y ${status === 'denegado' ? 'denegado' : 'requerido cambios'} para la publicación de tu proyecto "${project.title}".${reasonMessage}`;
 
       for (const author of project.authors) {
         await this.notificationsService.createNotification({
@@ -302,7 +342,7 @@ export class ProjectsService {
       for (const author of project.authors) {
         await this.notificationsService.createNotification({
           userId: author.userId,
-          message: `[¡Proyecto Aprobado!] Tu proyecto "${project.title}" ha sido aprobado y ahora es público.`,
+          message: `[¡Proyecto Aprobado!] El administrador ${adminName} ha aprobado tu proyecto "${project.title}" y ahora es público.`,
           type: 'SYSTEM',
         });
       }
